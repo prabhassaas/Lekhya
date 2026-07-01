@@ -1,0 +1,50 @@
+<?php
+return [
+    'postmark' => ['token' => env('POSTMARK_TOKEN')],
+    'ses'      => ['key' => env('AWS_ACCESS_KEY_ID'), 'secret' => env('AWS_SECRET_ACCESS_KEY'), 'region' => env('AWS_DEFAULT_REGION', 'us-east-1')],
+    'resend'   => ['key' => env('RESEND_KEY')],
+    'slack'    => ['notifications' => ['bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'), 'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL')]],
+
+    // GST Gateway
+    'gst' => [
+        'driver'    => env('GST_DRIVER', 'mock'), // mock | masters_india | cleartax | iris
+        'client_id' => env('GST_CLIENT_ID'),
+        'client_secret' => env('GST_CLIENT_SECRET'),
+        'username'  => env('GST_USERNAME'),
+        'password'  => env('GST_PASSWORD'),
+        'base'      => env('GST_API_BASE'),
+        'auth_url'  => env('GST_AUTH_URL'),
+        'einvoice_threshold_crore' => env('GST_EINVOICE_THRESHOLD_CRORE', 5),
+    ],
+
+    // Supabase (for Seedha Bill Mode A connector)
+    'supabase' => [
+        'url'         => env('SUPABASE_URL'),
+        'anon_key'    => env('SUPABASE_ANON_KEY'),
+        'service_key' => env('SUPABASE_SERVICE_KEY'),
+    ],
+
+    // Seedha Bill REST API (Mode B connector)
+    'seedha_bill' => [
+        'mode'     => env('SEEDHA_BILL_MODE', 'mock'),  // mock | mode_a | mode_b
+        'base_url' => env('SEEDHA_BILL_BASE_URL', 'https://api.seedhabill.com/v1'),
+    ],
+
+    // AI / LLM
+    'ai' => [
+        'driver'      => env('AI_DRIVER', 'ollama'),  // ollama | anthropic | openai
+        'endpoint'    => env('AI_ENDPOINT', 'http://localhost:11434/api/generate'),
+        'model'       => env('AI_MODEL', 'llama3.2'),
+        'max_tokens'  => env('AI_MAX_TOKENS', 2048),
+        'temperature' => env('AI_TEMPERATURE', 0.1),
+        'use_vision'  => env('AI_USE_VISION', false),
+        'anthropic_key' => env('ANTHROPIC_API_KEY'),
+    ],
+
+    // Razorpay
+    'razorpay' => [
+        'key_id'     => env('RAZORPAY_KEY_ID'),
+        'key_secret' => env('RAZORPAY_KEY_SECRET'),
+        'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
+    ],
+];

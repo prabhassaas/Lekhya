@@ -67,3 +67,40 @@ Extract to microservices only when explicitly requested.
 - Commit at the end of each phase
 - Constrain scope explicitly — say what NOT to build in every prompt
 - Always include acceptance criteria so work stops when done
+
+## Stack (Updated — PHP/Laravel)
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Laravel 11 (PHP 8.4) |
+| Frontend | Blade + Alpine.js + Tailwind CSS CDN |
+| Database | MySQL 8.0 with Eloquent ORM |
+| Cache/Queue | Redis + Laravel Queue |
+| Payments | Razorpay |
+| PDF Export | DomPDF (barryvdh/laravel-dompdf) |
+| Auth / RBAC | Laravel Sanctum + Spatie Permission |
+| Testing | PHPUnit + Pest |
+
+## App Location
+
+Main Laravel application: `/lekhya-app/`
+
+## Phase Status (Updated)
+
+- [x] Core migrations (tenants, accounting, GST, connector, billing, Pramaan)
+- [x] Multi-tenant middleware + Pramaan gating
+- [x] Double-entry JournalEngine (immutable, balanced-enforced)
+- [x] InvoicePostingService (auto-posts DR/CR + GST accounts)
+- [x] GST Rate Engine (CGST/SGST vs IGST by state)
+- [x] GST Gateway interface + MockGstGateway
+- [x] Seedha Bill Connector (Mode A: Supabase RPC, Mode B: REST token)
+- [x] ImportPipeline (normalize → dedupe → validate → post → lock)
+- [x] TallyMigrationService (XML parse + journal import)
+- [x] ChartOfAccountsSeeder (standard Indian GST CoA)
+- [x] Marketing site (home, pricing, features, flows, connector guide)
+- [x] Help docs (local LLM, GST API, Hostinger deploy, Tally migration)
+- [x] All module flow diagrams (flows page)
+- [ ] Billing/Razorpay subscription flow (Phase 5a)
+- [ ] Full Blade UI polish for all accounting pages
+- [ ] Real GSP gateway implementation (connect your GSP)
+- [ ] Production Supabase ↔ MySQL bridge testing
