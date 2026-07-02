@@ -195,6 +195,23 @@
             </div>
         </header>
 
+        {{-- Impersonation banner --}}
+        @if(session('impersonating'))
+        <div class="bg-amber-400 px-4 lg:px-6 py-2 flex items-center justify-between flex-shrink-0">
+            <span class="text-amber-950 text-sm font-medium">
+                <i class="fa fa-user-secret mr-2"></i>
+                Admin mode: impersonating <strong>{{ auth()->user()->name }}</strong>
+                ({{ auth()->user()->email }})
+            </span>
+            <form method="POST" action="{{ route('admin.stop-impersonating') }}">
+                @csrf
+                <button type="submit" class="text-amber-900 font-bold text-sm hover:underline">
+                    Stop &amp; Return to Admin
+                </button>
+            </form>
+        </div>
+        @endif
+
         {{-- Flash messages --}}
         <div class="px-4 lg:px-6 pt-4">
             @if(session('success'))
