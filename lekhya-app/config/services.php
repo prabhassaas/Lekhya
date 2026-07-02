@@ -43,8 +43,18 @@ return [
 
     // Razorpay
     'razorpay' => [
-        'key_id'     => env('RAZORPAY_KEY_ID'),
-        'key_secret' => env('RAZORPAY_KEY_SECRET'),
+        'key_id'         => env('RAZORPAY_KEY_ID'),
+        'key_secret'     => env('RAZORPAY_KEY_SECRET'),
         'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
+        'mode'           => env('RAZORPAY_MODE', 'mock'), // mock | live
+        'upi_id'         => env('RAZORPAY_UPI_ID'),      // e.g. business@upi
+    ],
+
+    // WhatsApp Business (Meta Cloud API)
+    'whatsapp' => [
+        'enabled'         => env('WHATSAPP_ENABLED', false),
+        'token'           => env('WHATSAPP_TOKEN'),
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'business_id'     => env('WHATSAPP_BUSINESS_ID'),
     ],
 ];
