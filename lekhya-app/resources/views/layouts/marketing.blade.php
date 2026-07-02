@@ -32,8 +32,86 @@
             </div>
 
             <div class="hidden md:flex items-center space-x-3">
+                @guest
                 <a href="{{ route('login') }}" class="text-navy-600 hover:text-navy-700 text-sm font-medium px-4 py-2">Sign In</a>
                 <a href="{{ route('register') }}" class="bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Start Free Trial</a>
+                @else
+
+                {{-- App Switcher --}}
+                <div x-data="{ appMenu: false }" class="relative">
+                    <button @click="appMenu=!appMenu" @click.away="appMenu=false"
+                            class="flex items-center space-x-1.5 text-navy-600 text-sm font-medium px-3 py-2 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition">
+                        <div class="w-5 h-5 bg-navy-600 rounded flex items-center justify-center flex-shrink-0">
+                            <span class="text-white font-bold text-xs">ल</span>
+                        </div>
+                        <span>Lekhya</span>
+                        <i class="fa fa-chevron-down text-xs text-gray-400 transition-transform duration-150" :class="appMenu ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="appMenu" x-cloak
+                         class="absolute right-0 mt-2 w-52 bg-white rounded-xl border border-gray-100 shadow-lg py-1 z-50">
+                        <div class="px-4 py-2 text-xs text-gray-400 font-semibold uppercase tracking-wider">Your Apps</div>
+                        <a href="{{ route('dashboard') }}"
+                           class="flex items-center justify-between px-4 py-2 text-sm text-navy-600 font-medium hover:bg-gray-50">
+                            <span>Lekhya ERP</span>
+                            <i class="fa fa-check text-navy-600 text-xs"></i>
+                        </a>
+                        <a href="{{ config('services.prabhas.seedhabill_url', 'https://seedhabill.in') }}" target="_blank" rel="noopener"
+                           class="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <span>SeedhaBill</span>
+                            <i class="fa fa-arrow-up-right-from-square text-gray-400 text-xs"></i>
+                        </a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <a href="{{ config('services.prabhas.accounts_url', 'https://accounts.prabhas.in') }}" target="_blank" rel="noopener"
+                           class="flex items-center space-x-2 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+                            <i class="fa fa-plus text-xs"></i>
+                            <span>Add App</span>
+                        </a>
+                    </div>
+                </div>
+
+                {{-- User avatar + dropdown --}}
+                <div x-data="{ userMenu: false }" class="relative">
+                    <button @click="userMenu=!userMenu" @click.away="userMenu=false"
+                            class="flex items-center space-x-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition">
+                        <div class="w-8 h-8 rounded-full bg-navy-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                        </div>
+                        <span class="text-sm text-gray-700 font-medium max-w-[7rem] truncate">
+                            {{ explode(' ', auth()->user()->name)[0] }}
+                        </span>
+                        <i class="fa fa-chevron-down text-xs text-gray-400"></i>
+                    </button>
+                    <div x-show="userMenu" x-cloak
+                         class="absolute right-0 mt-2 w-48 bg-white rounded-xl border border-gray-100 shadow-lg py-1 z-50">
+                        <div class="px-4 py-2 border-b border-gray-100">
+                            <p class="text-xs font-semibold text-gray-800 truncate">{{ auth()->user()->name }}</p>
+                            <p class="text-xs text-gray-500 truncate">{{ auth()->user()->email }}</p>
+                        </div>
+                        <a href="{{ route('dashboard') }}"
+                           class="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fa fa-gauge-high w-4 text-gray-400"></i><span>Dashboard</span>
+                        </a>
+                        <a href="{{ route('settings.index') }}"
+                           class="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fa fa-gear w-4 text-gray-400"></i><span>Settings</span>
+                        </a>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit"
+                                    class="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                <i class="fa fa-right-from-bracket w-4"></i><span>Sign Out</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                {{-- Open Dashboard CTA --}}
+                <a href="{{ route('dashboard') }}"
+                   class="bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                    Open Dashboard
+                </a>
+                @endguest
             </div>
 
             <button @click="mobileMenu=!mobileMenu" class="md:hidden text-gray-600">
@@ -42,14 +120,41 @@
         </div>
     </div>
 
-    <div x-show="mobileMenu" x-cloak class="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-2">
-        <a href="{{ route('marketing.features') }}" class="block py-2 text-gray-700">Features</a>
-        <a href="{{ route('marketing.pricing') }}" class="block py-2 text-gray-700">Pricing</a>
-        <a href="{{ route('marketing.connector') }}" class="block py-2 text-gray-700">Seedha Bill</a>
-        <a href="{{ route('marketing.flows') }}" class="block py-2 text-gray-700">How it Works</a>
-        <a href="{{ route('marketing.help') }}" class="block py-2 text-gray-700">Help</a>
-        <a href="{{ route('login') }}" class="block py-2 text-gray-700">Sign In</a>
-        <a href="{{ route('register') }}" class="block py-2 text-navy-600 font-semibold">Start Free Trial</a>
+    <div x-show="mobileMenu" x-cloak class="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
+        <a href="{{ route('marketing.features') }}" class="block py-2 text-gray-700 text-sm">Features</a>
+        <a href="{{ route('marketing.pricing') }}" class="block py-2 text-gray-700 text-sm">Pricing</a>
+        <a href="{{ route('marketing.connector') }}" class="block py-2 text-gray-700 text-sm">Seedha Bill</a>
+        <a href="{{ route('marketing.flows') }}" class="block py-2 text-gray-700 text-sm">How it Works</a>
+        <a href="{{ route('marketing.help') }}" class="block py-2 text-gray-700 text-sm">Help</a>
+        @guest
+        <div class="pt-2 border-t border-gray-100 space-y-2">
+            <a href="{{ route('login') }}" class="block py-2 text-gray-700 text-sm">Sign In</a>
+            <a href="{{ route('register') }}" class="block py-2 text-navy-600 font-semibold text-sm">Start Free Trial</a>
+        </div>
+        @else
+        <div class="pt-2 border-t border-gray-100">
+            <div class="flex items-center space-x-2 py-2">
+                <div class="w-8 h-8 rounded-full bg-navy-600 flex items-center justify-center text-white text-xs font-bold">
+                    {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-800">{{ auth()->user()->name }}</p>
+                    <p class="text-xs text-gray-500">{{ auth()->user()->email }}</p>
+                </div>
+            </div>
+            <a href="{{ route('dashboard') }}" class="block py-2 text-navy-600 font-semibold text-sm">Open Dashboard</a>
+            <a href="{{ config('services.prabhas.seedhabill_url', 'https://seedhabill.in') }}" target="_blank" rel="noopener"
+               class="block py-2 text-gray-700 text-sm">SeedhaBill <i class="fa fa-arrow-up-right-from-square text-xs ml-0.5"></i></a>
+            <a href="{{ config('services.prabhas.accounts_url', 'https://accounts.prabhas.in') }}" target="_blank" rel="noopener"
+               class="block py-2 text-gray-700 text-sm">Manage Apps</a>
+            <div class="pt-1 border-t border-gray-100 mt-1">
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="py-2 text-red-600 font-medium text-sm text-left">Sign Out</button>
+                </form>
+            </div>
+        </div>
+        @endguest
     </div>
 </nav>
 

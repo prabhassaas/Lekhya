@@ -57,4 +57,12 @@ return [
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
         'business_id'     => env('WHATSAPP_BUSINESS_ID'),
     ],
+
+    // Prabhas SSO / central auth
+    'prabhas' => [
+        'sso_secret'     => env('PRABHAS_SSO_SECRET'),
+        'accounts_url'   => env('PRABHAS_ACCOUNTS_URL', 'https://accounts.prabhas.in'),
+        'seedhabill_url' => env('PRABHAS_SEEDHABILL_URL', 'https://seedhabill.in'),
+        'logout_url'     => env('PRABHAS_LOGOUT_URL', 'https://accounts.prabhas.in/logout'),
+    ],
 ];

@@ -16,6 +16,9 @@ use App\Http\Controllers\Pramaan\AuditReportController;
 use App\Http\Controllers\Pramaan\ComplianceCalendarController;
 use App\Http\Controllers\Marketing\MarketingController;
 use App\Http\Controllers\Admin\TenantController;
+use App\Http\Controllers\Admin\SuperAdminController;
+use App\Http\Controllers\Auth\SsoController;
+use App\Http\Controllers\Settings\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 // ── Marketing / Public pages
@@ -35,6 +38,10 @@ Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::get('/register', [LoginController::class, 'showRegister'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
+
+// ── Prabhas SSO (Brief 1)
+Route::get('/auth/sso', [SsoController::class, 'handle'])->name('sso.handle');
+Route::get('/auth/sso/logout', [SsoController::class, 'logout'])->name('sso.logout');
 
 // ── App (authenticated)
 Route::middleware(['auth', 'tenant'])->group(function () {
@@ -119,11 +126,32 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('/', fn() => redirect()->route('settings.company'))->name('index');
         Route::get('company', [TenantController::class, 'edit'])->name('company');
         Route::put('company', [TenantController::class, 'update'])->name('company.update');
-        Route::get('users', [TenantController::class, 'users'])->name('users');
         Route::get('fiscal-years', [TenantController::class, 'fiscalYears'])->name('fiscal_years');
         Route::get('billing', [TenantController::class, 'billing'])->name('billing');
+
+        // Users & RBAC (Brief 1B)
+        Route::get('users', [UserManagementController::class, 'index'])->name('users');
+        Route::post('users/invite', [UserManagementController::class, 'invite'])->name('users.invite');
+        Route::patch('users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.role');
+        Route::patch('users/{user}/permissions', [UserManagementController::class, 'updatePermissions'])->name('users.permissions');
+        Route::patch('users/{user}/deactivate', [UserManagementController::class, 'deactivate'])->name('users.deactivate');
+        Route::patch('users/{user}/reactivate', [UserManagementController::class, 'reactivate'])->name('users.reactivate');
+        Route::delete('users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
     });
 });
 
 // Connector webhook (unauthenticated)
 Route::post('/api/connector/webhook', [ConnectorController::class, 'webhook'])->name('connector.webhook');
+
+// ── Super Admin Panel (Brief 2)
+Route::middleware(['auth', \App\Http\Middleware\SuperAdminMiddleware::class])
+    ->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', [SuperAdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('tenants', [SuperAdminController::class, 'tenants'])->name('tenants');
+        Route::get('tenants/{tenant}', [SuperAdminController::class, 'tenant'])->name('tenants.show');
+        Route::post('impersonate/{user}', [SuperAdminController::class, 'impersonate'])->name('impersonate');
+        Route::post('stop-impersonating', [SuperAdminController::class, 'stopImpersonating'])->name('stop-impersonating');
+        Route::get('feature-flags', [SuperAdminController::class, 'featureFlags'])->name('feature-flags');
+        Route::post('feature-flags/toggle', [SuperAdminController::class, 'toggleFeatureFlag'])->name('feature-flags.toggle');
+        Route::get('audit-log', [SuperAdminController::class, 'auditLog'])->name('audit-log');
+    });
