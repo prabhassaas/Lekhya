@@ -109,6 +109,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('/', [AiAssistantController::class, 'index'])->name('index');
         Route::post('extract', [AiAssistantController::class, 'extractInvoice'])->name('extract');
         Route::post('query', [AiAssistantController::class, 'naturalLanguageQuery'])->name('query');
+        Route::post('suggest-account', [AiAssistantController::class, 'suggestAccount'])->name('suggest-account');
         Route::post('suggestions/{suggestion}/approve', [AiAssistantController::class, 'approve'])->name('approve');
         Route::post('suggestions/{suggestion}/reject', [AiAssistantController::class, 'reject'])->name('reject');
     });
