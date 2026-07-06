@@ -39,10 +39,11 @@ class GoogleAuthController extends Controller
             return response()->json(['error' => 'Google sign-in could not be verified. Please try again.'], 401);
         }
 
-        $data  = $resp->json();
-        $email = $data['email'] ?? null;
-        $meta  = $data['user_metadata'] ?? [];
-        $name  = $meta['full_name'] ?? $meta['name'] ?? ($email ? explode('@', $email)[0] : 'User');
+        $data       = $resp->json();
+        $supabaseUid = $data['id'] ?? null;
+        $email      = $data['email'] ?? null;
+        $meta       = $data['user_metadata'] ?? [];
+        $name       = $meta['full_name'] ?? $meta['name'] ?? ($email ? explode('@', $email)[0] : 'User');
 
         if (! $email) {
             return response()->json(['error' => 'No email address was returned from Google.'], 422);
@@ -101,6 +102,26 @@ class GoogleAuthController extends Controller
 
         Auth::login($user, true);
         $request->session()->regenerate();
+
+        // Write entitlement in the shared Supabase project so the
+        // PrabhasSaaS account dashboard shows Lekhya as ACTIVE.
+        if ($supabaseUid && $isNew) {
+            $serviceKey  = config('services.supabase.service_key', '');
+            $entitleBody = [
+                'user_id'     => $supabaseUid,
+                'app'         => 'lekhya',
+                'plan'        => 'trial',
+                'status'      => 'active',
+                'valid_until' => now()->addDays(14)->toIso8601String(),
+            ];
+
+            Http::withHeaders([
+                'apikey'        => $serviceKey,
+                'Authorization' => 'Bearer ' . $serviceKey,
+                'Content-Type'  => 'application/json',
+                'Prefer'        => 'resolution=ignore-duplicates,return=minimal',
+            ])->post("{$supabaseUrl}/rest/v1/entitlements", $entitleBody);
+        }
 
         if ($isNew) {
             session()->flash('success', 'Welcome to Lekhya! Your 14-day free trial has started.');
