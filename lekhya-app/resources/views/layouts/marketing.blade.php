@@ -166,13 +166,19 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div class="col-span-2 md:col-span-1">
                 <div class="flex items-center space-x-2 mb-4">
-                    <div class="w-8 h-8 bg-blue-400 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-sm">ल</span>
+                    <div class="w-8 h-8 bg-navy-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm" style="font-family:serif">ल</span>
                     </div>
                     <span class="text-white font-bold text-xl">Lekhya</span>
                 </div>
-                <p class="text-sm text-gray-400 mb-4">Seedha-saadha GST accounting for India. Part of <strong class="text-gray-300">Prabhas SaaS</strong> — one login, every app.</p>
-                <p class="text-xs text-gray-500">FOCUS: Finely Orchestrated Cohesive Unwavering Service</p>
+                <p class="text-sm text-gray-400 mb-5">Seedha-saadha GST accounting for India. Part of Prabhas SaaS — one login, every app.</p>
+                <div class="flex items-center space-x-2 bg-white bg-opacity-5 rounded-xl px-3 py-2 border border-white border-opacity-10 w-fit">
+                    <img src="/prabhas-logo.svg" alt="Prabhas SaaS" class="h-7 w-7 rounded object-contain bg-white p-0.5">
+                    <div>
+                        <p class="text-white text-xs font-bold leading-none">PRABHAS</p>
+                        <p class="text-gray-400 text-xs leading-none">SaaS</p>
+                    </div>
+                </div>
             </div>
 
             <div>

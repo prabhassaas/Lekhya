@@ -31,11 +31,9 @@
         {{-- Logo / brand --}}
         <div class="flex items-center h-16 px-5 border-b border-gray-800">
             <div class="flex items-center space-x-3">
-                <div class="w-9 h-9 bg-violet-600 rounded-xl flex items-center justify-center shadow">
-                    <i class="fa fa-shield-halved text-white"></i>
-                </div>
+                <img src="/prabhas-logo.svg" alt="Prabhas SaaS" class="h-9 w-9 rounded-xl object-contain bg-white p-0.5">
                 <div>
-                    <p class="text-white font-bold text-sm leading-none">Prabhas</p>
+                    <p class="text-white font-bold text-sm leading-none">Prabhas SaaS</p>
                     <p class="text-violet-400 text-xs mt-0.5">Super Admin</p>
                 </div>
             </div>
