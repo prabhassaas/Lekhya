@@ -18,6 +18,7 @@ use App\Http\Controllers\Marketing\MarketingController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\SuperAdminController;
 use App\Http\Controllers\Auth\SsoController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Settings\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,10 @@ Route::post('/register', [LoginController::class, 'register']);
 // ── Prabhas SSO (Brief 1)
 Route::get('/auth/sso', [SsoController::class, 'handle'])->name('sso.handle');
 Route::get('/auth/sso/logout', [SsoController::class, 'logout'])->name('sso.logout');
+
+// ── Google / Supabase OAuth
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+Route::post('/auth/google/verify', [GoogleAuthController::class, 'verify'])->name('auth.google.verify');
 
 // ── App (authenticated)
 Route::middleware(['auth', 'tenant'])->group(function () {
