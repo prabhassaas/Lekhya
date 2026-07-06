@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Lekhya') — AI-powered GST ERP for India</title>
     <meta name="description" content="@yield('meta-desc', 'Lekhya is India\'s seedha-saadha AI accounting ERP. GST-compliant, double-entry, cloud-based. Free 14-day trial.')">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { navy: { 50:'#f0f3f8', 600:'#1B2A4A', 700:'#162240', 900:'#0c1226' } } } } }</script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>

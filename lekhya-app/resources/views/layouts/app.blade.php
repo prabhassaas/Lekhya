@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Lekhya') — Lekhya AI ERP</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { navy: { 50:'#f0f3f8', 100:'#d9e1ef', 200:'#b3c4df', 300:'#7fa0c9', 400:'#4f7ab0', 500:'#2e5a94', 600:'#1B2A4A', 700:'#162240', 800:'#111a33', 900:'#0c1226' } } } } }</script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
@@ -242,11 +243,90 @@
     </div>
 </div>
 
+{{-- ── Splash Screen (first load only) ──────────────────────────── --}}
+<div id="lekhya-splash" style="position:fixed;inset:0;z-index:9999;background:#1B2A4A;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.6s ease">
+  <div style="text-align:center">
+    <div style="width:72px;height:72px;background:#2e5a94;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
+      <span style="color:#fff;font-size:36px;font-weight:700;font-family:serif">ल</span>
+    </div>
+    <p style="color:#fff;font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin:0 0 4px">Lekhya</p>
+    <p style="color:#7fa0c9;font-size:0.85rem;margin:0 0 32px">AI-powered GST ERP</p>
+    <div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden;margin:0 auto">
+      <div id="splash-bar" style="height:100%;width:0%;background:#4ade80;border-radius:99px;transition:width 0.05s linear"></div>
+    </div>
+  </div>
+</div>
+
+{{-- ── Page transition progress bar ─────────────────────────────── --}}
+<div id="page-progress" style="position:fixed;top:0;left:0;right:0;height:3px;z-index:9998;pointer-events:none;opacity:0;transition:opacity 0.2s">
+  <div id="page-progress-bar" style="height:100%;width:0%;background:#4ade80;transition:width 0.3s ease;box-shadow:0 0 8px #4ade80"></div>
+</div>
+
 <style>
 .nav-link { display:flex; align-items:center; gap:0.625rem; padding:0.5rem 0.75rem; border-radius:0.5rem; font-size:0.875rem; color:#b3c4df; transition:background-color 0.15s, color 0.15s; }
 .nav-link:hover, .nav-link.active { background-color:rgba(255,255,255,0.1); color:#fff; }
 [x-cloak] { display:none; }
 </style>
+
+<script>
+(function() {
+  var splash = document.getElementById('lekhya-splash');
+  var bar    = document.getElementById('splash-bar');
+  var shown  = sessionStorage.getItem('lekhya_splash_shown');
+
+  if (shown) {
+    // Already shown this session — hide immediately
+    splash.style.display = 'none';
+  } else {
+    // Animate progress bar over 5 seconds
+    var pct = 0;
+    var tick = setInterval(function() {
+      pct = Math.min(pct + 2, 100);
+      bar.style.width = pct + '%';
+      if (pct >= 100) {
+        clearInterval(tick);
+        setTimeout(function() {
+          splash.style.opacity = '0';
+          setTimeout(function() { splash.style.display = 'none'; }, 650);
+        }, 200);
+      }
+    }, 100); // 100ms × 50 steps = 5 seconds
+    sessionStorage.setItem('lekhya_splash_shown', '1');
+  }
+
+  // Page transition progress bar
+  var prog    = document.getElementById('page-progress');
+  var progBar = document.getElementById('page-progress-bar');
+  var progInterval = null;
+
+  function startProgress() {
+    prog.style.opacity = '1';
+    progBar.style.width = '0%';
+    var w = 0;
+    progInterval = setInterval(function() {
+      w = Math.min(w + (Math.random() * 8 + 2), 85);
+      progBar.style.width = w + '%';
+    }, 200);
+  }
+  function finishProgress() {
+    clearInterval(progInterval);
+    progBar.style.width = '100%';
+    setTimeout(function() {
+      prog.style.opacity = '0';
+      setTimeout(function() { progBar.style.width = '0%'; }, 300);
+    }, 200);
+  }
+
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest('a');
+    if (a && a.href && a.target !== '_blank' && a.href.startsWith(window.location.origin) && !a.href.includes('#')) {
+      startProgress();
+    }
+  });
+  document.addEventListener('submit', function() { startProgress(); });
+  window.addEventListener('pageshow', function() { finishProgress(); });
+})();
+</script>
 
 @stack('scripts')
 </body>
