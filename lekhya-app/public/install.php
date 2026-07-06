@@ -4,8 +4,9 @@
  * DELETE THIS FILE after setup is complete.
  */
 set_time_limit(300);
-ini_set('display_errors', '0');
-ini_set('memory_limit', '256M');
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
+ini_set('memory_limit', '512M');
 
 // Auto-detect the lekhya-app directory
 $BASE = null;
@@ -55,23 +56,25 @@ function generateKey(): string {
 
 // ── Bootstrap Laravel and run artisan commands ─────────────────────────────
 function artisan(string $command, array $args = []): array {
-    global $BASE, $laravelApp;
+    global $BASE;
 
     ob_start();
     $exitCode = 0;
-    $error    = null;
 
     try {
-        if (!isset($laravelApp)) {
+        if (!isset($GLOBALS['_lapp'])) {
+            define('LARAVEL_START', microtime(true));
             require_once $BASE . '/vendor/autoload.php';
-            $GLOBALS['laravelApp'] = require $BASE . '/bootstrap/app.php';
-            $kernel = $GLOBALS['laravelApp']->make(\Illuminate\Contracts\Console\Kernel::class);
+            $app = require $BASE . '/bootstrap/app.php';
+            $GLOBALS['_lapp'] = $app;
+            $kernel = $app->make(\Illuminate\Contracts\Console\Kernel::class);
             $kernel->bootstrap();
+            $GLOBALS['_lkernel'] = $kernel;
         }
         $exitCode = \Illuminate\Support\Facades\Artisan::call($command, $args);
         $output   = \Illuminate\Support\Facades\Artisan::output();
     } catch (\Throwable $e) {
-        $output = 'ERROR: ' . $e->getMessage();
+        $output = 'ERROR: ' . $e->getMessage() . "\n" . $e->getFile() . ':' . $e->getLine();
         $exitCode = 1;
     }
 
