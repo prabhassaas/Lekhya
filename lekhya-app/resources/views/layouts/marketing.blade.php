@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Lekhya') — AI-powered GST ERP for India</title>
     <meta name="description" content="@yield('meta-desc', 'Lekhya is India\'s seedha-saadha AI accounting ERP. GST-compliant, double-entry, cloud-based. Free 14-day trial.')">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFCMkE0QSIvPgogIDx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9InNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuCksjwvdGV4dD4KPC9zdmc+Cg==">
+    <link rel="alternate icon" href="/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { navy: { 50:'#f0f3f8', 600:'#1B2A4A', 700:'#162240', 900:'#0c1226' } } } } }</script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
@@ -17,12 +18,18 @@
 <nav class="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
-            <a href="{{ route('marketing.home') }}" class="flex items-center space-x-2">
-                <div class="w-8 h-8 bg-navy-600 rounded-lg flex items-center justify-center">
-                    <span class="text-white font-bold text-sm">ल</span>
-                </div>
-                <span class="text-navy-600 font-bold text-xl">Lekhya</span>
-            </a>
+            <div class="flex items-center space-x-3">
+                <a href="https://prabhassaas.in" class="hidden md:flex items-center space-x-1 text-xs text-gray-400 hover:text-navy-600 transition border-r border-gray-200 pr-3 mr-1">
+                    <i class="fa fa-house text-xs"></i>
+                    <span>Prabhas SaaS</span>
+                </a>
+                <a href="{{ route('marketing.home') }}" class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-navy-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">ल</span>
+                    </div>
+                    <span class="text-navy-600 font-bold text-xl">Lekhya</span>
+                </a>
+            </div>
 
             <div class="hidden md:flex items-center space-x-8">
                 <a href="{{ route('marketing.features') }}" class="text-gray-600 hover:text-navy-600 text-sm font-medium">Features</a>
@@ -35,7 +42,7 @@
             <div class="hidden md:flex items-center space-x-3">
                 @guest
                 <a href="{{ route('login') }}" class="text-navy-600 hover:text-navy-700 text-sm font-medium px-4 py-2">Sign In</a>
-                <a href="{{ route('register') }}" class="bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Start Free Trial</a>
+                <a href="{{ route('register') }}" class="text-sm font-semibold px-4 py-2 rounded-lg transition" style="background:#f2a024;color:#1b2a4a">Start Free Trial</a>
                 @else
 
                 {{-- App Switcher --}}
@@ -129,8 +136,9 @@
         <a href="{{ route('marketing.help') }}" class="block py-2 text-gray-700 text-sm">Help</a>
         @guest
         <div class="pt-2 border-t border-gray-100 space-y-2">
+            <a href="https://prabhassaas.in" class="block py-2 text-gray-400 text-xs">← Prabhas SaaS</a>
             <a href="{{ route('login') }}" class="block py-2 text-gray-700 text-sm">Sign In</a>
-            <a href="{{ route('register') }}" class="block py-2 text-navy-600 font-semibold text-sm">Start Free Trial</a>
+            <a href="{{ route('register') }}" class="block py-2 font-semibold text-sm" style="color:#f2a024">Start Free Trial</a>
         </div>
         @else
         <div class="pt-2 border-t border-gray-100">

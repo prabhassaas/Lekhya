@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Lekhya') — Lekhya AI ERP</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFCMkE0QSIvPgogIDx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9InNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuCksjwvdGV4dD4KPC9zdmc+Cg==">
+    <link rel="alternate icon" href="/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { navy: { 50:'#f0f3f8', 100:'#d9e1ef', 200:'#b3c4df', 300:'#7fa0c9', 400:'#4f7ab0', 500:'#2e5a94', 600:'#1B2A4A', 700:'#162240', 800:'#111a33', 900:'#0c1226' } } } } }</script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
@@ -157,6 +158,12 @@
 
         {{-- Bottom: User + Settings --}}
         <div class="border-t border-navy-500 p-3">
+            <a href="https://prabhassaas.in" target="_blank" rel="noopener"
+               class="nav-link mb-1" style="color:#7fa0c9;font-size:0.78rem;letter-spacing:.01em">
+                <i class="fa fa-house w-5" style="font-size:0.75rem"></i>
+                <span>Prabhas SaaS Home</span>
+                <i class="fa fa-arrow-up-right-from-square ml-auto" style="font-size:0.65rem;opacity:.5"></i>
+            </a>
             <a href="{{ route('settings.index') }}" class="nav-link">
                 <i class="fa fa-gear w-5"></i> <span>Settings</span>
             </a>
