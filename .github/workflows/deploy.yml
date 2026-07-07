@@ -7,8 +7,45 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Clear Laravel caches via SSH
+      - uses: actions/checkout@v4
+
+      # Build vendor/ in CI — vendor is gitignored so we install it here
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Install Composer dependencies (production)
+        working-directory: lekhya-app
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      # Remove the broken absolute symlink from the CI checkout;
+      # artisan storage:link will recreate it correctly on the server.
+      - name: Remove public/storage symlink before upload
+        run: rm -f lekhya-app/public/storage
+
+      # SCP lekhya-app/ → public_html/ on Hostinger.
+      # strip_components=1 strips the "lekhya-app" prefix so every file
+      # lands directly inside public_html/ (e.g. lekhya-app/public/ → public_html/public/).
+      # .env and storage/ contents already on the server are NOT deleted
+      # (SCP overwrites but does not delete missing files).
+      - name: Upload lekhya-app to public_html
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          port: 65002
+          source: "lekhya-app"
+          target: "public_html"
+          strip_components: 1
+          overwrite: true
+
+      # Rebuild all caches, recreate storage symlink, run migrations
+      - name: Post-deploy cache refresh
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.HOSTINGER_SSH_HOST }}
@@ -16,11 +53,13 @@ jobs:
           password: ${{ secrets.HOSTINGER_SSH_PASS }}
           port: 65002
           script: |
-            cd ~/public_html/lekhya-app
+            set -e
+            cd ~/public_html
+            php8.3 artisan storage:link 2>/dev/null || true
             php8.3 artisan config:clear
             php8.3 artisan config:cache
             php8.3 artisan route:clear
             php8.3 artisan route:cache
             php8.3 artisan view:clear
-            php8.3 artisan event:clear
-            echo "Deploy cache refresh complete"
+            php8.3 artisan migrate --force --no-interaction
+            echo "✓ Deployment complete"

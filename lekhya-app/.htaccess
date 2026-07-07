@@ -1,0 +1,17 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Serve real static files from public/ directly (css, js, images, fonts)
+    RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -f
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
+
+    # Serve real directories from public/ directly
+    RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -d
+    RewriteRule ^(.*)$ public/$1/ [L,QSA]
+
+    # Everything else → Laravel front controller
+    RewriteRule ^(.*)$ public/index.php [L,QSA]
+</IfModule>
