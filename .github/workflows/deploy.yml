@@ -1,0 +1,26 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clear Laravel caches via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          port: 65002
+          script: |
+            cd ~/public_html/lekhya-app
+            php8.3 artisan config:clear
+            php8.3 artisan config:cache
+            php8.3 artisan route:clear
+            php8.3 artisan route:cache
+            php8.3 artisan view:clear
+            php8.3 artisan event:clear
+            echo "Deploy cache refresh complete"
