@@ -180,13 +180,10 @@
                     <span class="text-white font-bold text-xl">Lekhya</span>
                 </div>
                 <p class="text-sm text-gray-400 mb-5">Seedha-saadha GST accounting for India. Part of Prabhas SaaS — one login, every app.</p>
-                <div class="flex items-center space-x-2 bg-white bg-opacity-5 rounded-xl px-3 py-2 border border-white border-opacity-10 w-fit">
-                    <img src="/prabhas-logo.svg" alt="Prabhas SaaS" class="h-7 w-7 rounded object-contain bg-white p-0.5">
-                    <div>
-                        <p class="text-white text-xs font-bold leading-none">PRABHAS</p>
-                        <p class="text-gray-400 text-xs leading-none">SaaS</p>
-                    </div>
-                </div>
+                <a href="https://prabhassaas.in" target="_blank" rel="noopener"
+                   class="inline-block bg-white rounded-xl px-3 py-2 border border-white border-opacity-10 w-fit hover:opacity-90 transition">
+                    <img src="/prabhas-logo.png" alt="Prabhas SaaS" class="h-12 w-auto object-contain">
+                </a>
             </div>
 
             <div>
