@@ -87,6 +87,20 @@ jobs:
             php artisan migrate --force --no-interaction
             echo "✓ Deployment complete"
 
+      # Temporary: still 500 after the APP_KEY fix. Surface the current
+      # Laravel exception.
+      - name: Show recent Laravel error log
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          port: 65002
+          script: |
+            L=~/domains/lekhya.prabhassaas.in/public_html/storage/logs/laravel.log
+            echo "=== last 60 lines of laravel.log ===" && tail -60 "$L" 2>&1 || echo "log file missing"
+            echo "=== APP_KEY line present? ===" && grep -c '^APP_KEY=' ~/domains/lekhya.prabhassaas.in/public_html/.env 2>&1
+
       # One-time cleanup: Hostinger's own Git deployment (now disconnected)
       # previously deployed the WHOLE monorepo into this docroot instead of
       # just lekhya-app/, leaving apps/, packages/, .git/, .github/, and a
