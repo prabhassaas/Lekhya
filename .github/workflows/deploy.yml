@@ -45,7 +45,7 @@ jobs:
           strip_components: 1
           overwrite: true
 
-      # Rebuild all caches, recreate storage symlink, run migrations
+      # Diagnose server layout then rebuild all caches
       - name: Post-deploy cache refresh
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -55,6 +55,11 @@ jobs:
           port: 65002
           script: |
             set -e
+            echo "=== HOME DIR ===" && ls ~/ | head -20
+            echo "=== public_html TOP-LEVEL ===" && ls ~/public_html/ | head -30
+            echo "=== public_html/.htaccess ===" && cat ~/public_html/.htaccess 2>/dev/null || echo "MISSING"
+            echo "=== public/index.php exists? ===" && ls ~/public_html/public/index.php 2>/dev/null || echo "MISSING"
+            echo "=== PHP version ===" && php -v | head -1
             cd ~/public_html
             php artisan storage:link 2>/dev/null || true
             php artisan config:clear
