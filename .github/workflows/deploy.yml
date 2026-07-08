@@ -68,6 +68,22 @@ jobs:
             php artisan migrate --force --no-interaction
             echo "✓ Deployment complete"
 
+      # Temporary: 403 is resolved, site now returns 500. Surface the
+      # actual Laravel exception (APP_DEBUG is off in production, so the
+      # browser only shows a blank 500 — the real error is in the log).
+      - name: Show recent Laravel error log
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          port: 65002
+          script: |
+            L=~/domains/lekhya.prabhassaas.in/public_html/storage/logs/laravel.log
+            echo "=== last 100 lines of laravel.log ===" && tail -100 "$L" 2>&1 || echo "log file missing"
+            echo "=== storage/bootstrap cache writability ===" && ls -la ~/domains/lekhya.prabhassaas.in/public_html/storage ~/domains/lekhya.prabhassaas.in/public_html/bootstrap/cache
+            echo "=== curl localhost through PHP directly ===" && cd ~/domains/lekhya.prabhassaas.in/public_html && php artisan about 2>&1 | head -40
+
       # One-time cleanup: Hostinger's own Git deployment (now disconnected)
       # previously deployed the WHOLE monorepo into this docroot instead of
       # just lekhya-app/, leaving apps/, packages/, .git/, .github/, and a
