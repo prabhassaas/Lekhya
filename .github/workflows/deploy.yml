@@ -55,11 +55,15 @@ jobs:
           port: 65002
           script: |
             set -e
-            echo "=== HOME DIR ===" && ls ~/ | head -20
+            echo "=== HOME DIR (full) ===" && ls -la ~/
+            echo "=== domains/ or subdomains/ folder if present ===" && (ls -la ~/domains/ 2>/dev/null || echo "no domains/ folder"); (ls -la ~/subdomains/ 2>/dev/null || echo "no subdomains/ folder")
             echo "=== public_html TOP-LEVEL ===" && ls ~/public_html/ | head -30
             echo "=== public_html/.htaccess ===" && cat ~/public_html/.htaccess 2>/dev/null || echo "MISSING"
             echo "=== public/index.php exists? ===" && ls ~/public_html/public/index.php 2>/dev/null || echo "MISSING"
+            echo "=== PERMISSIONS ===" && stat -c '%a %U:%G %n' ~ ~/public_html ~/public_html/public ~/public_html/public/index.php ~/public_html/.htaccess 2>&1
             echo "=== PHP version ===" && php -v | head -1
+            echo "test-deploy-marker" > ~/public_html/deploytest.txt
+            echo "=== wrote deploytest.txt ===" && ls -la ~/public_html/deploytest.txt
             cd ~/public_html
             php artisan storage:link 2>/dev/null || true
             php artisan config:clear
