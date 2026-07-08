@@ -60,10 +60,15 @@ jobs:
             set -e
             cd ~/domains/lekhya.prabhassaas.in/public_html
             ln -sfn ../storage/app/public public/storage 2>/dev/null || true
+            # Laravel expects .env next to artisan (public_html/.env), but the
+            # only .env on this server lives one level up at the domain root
+            # (~/domains/lekhya.prabhassaas.in/.env) — copy it into place if
+            # it isn't already here.
+            [ -f .env ] || cp ../.env .env
             php artisan config:clear
-            # .env on this server has no APP_KEY yet (MissingAppKeyException
-            # in production). Generate one only if missing so redeploys never
-            # rotate an existing key and invalidate live sessions/cookies.
+            # .env had no APP_KEY yet (MissingAppKeyException in production).
+            # Generate one only if missing so redeploys never rotate an
+            # existing key and invalidate live sessions/cookies.
             grep -q '^APP_KEY=base64:' .env 2>/dev/null || php artisan key:generate --force
             php artisan config:cache
             php artisan route:clear
