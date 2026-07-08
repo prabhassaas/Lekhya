@@ -68,6 +68,27 @@ jobs:
             php artisan migrate --force --no-interaction
             echo "✓ Deployment complete"
 
+      # Temporary diagnostics: still 403 after deploying to the right
+      # docroot with valid .env — check for leftover cruft from the old
+      # Hostinger Git deployment, permission chain, and Apache error log.
+      - name: Diagnose remaining 403
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          port: 65002
+          script: |
+            D=~/domains/lekhya.prabhassaas.in
+            echo "=== $D full listing (top level) ===" && ls -la "$D"
+            echo "=== $D/public_html full listing ===" && ls -la "$D/public_html"
+            echo "=== .htaccess at public_html root ===" && cat "$D/public_html/.htaccess" 2>/dev/null || echo MISSING
+            echo "=== public_html/public listing ===" && ls -la "$D/public_html/public" 2>/dev/null || echo MISSING
+            echo "=== permission chain ===" && namei -l "$D/public_html/public/index.php" 2>&1
+            echo "=== write+verify test file ===" && echo ok > "$D/public_html/dt2.txt" && ls -la "$D/public_html/dt2.txt"
+            echo "=== any private_html or logs dir? ===" && ls -la "$D" | grep -iE 'log|private'
+            echo "=== apache/php error log tail if found ===" && (find "$D" -iname '*error*log*' -exec tail -30 {} \; 2>/dev/null || echo "none found under $D") && (find ~/logs -iname '*lekhya*' -exec tail -30 {} \; 2>/dev/null || echo "none found under ~/logs")
+
       # One-time cleanup: earlier runs mistakenly deployed to the account's
       # top-level ~/public_html instead of the real docroot above. Remove
       # the stray Laravel files so they don't sit there unused/exposed.
