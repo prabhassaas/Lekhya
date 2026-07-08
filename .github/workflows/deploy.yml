@@ -67,9 +67,19 @@ jobs:
             [ -f .env ] || cp ../.env .env
             php artisan config:clear
             # .env had no APP_KEY yet (MissingAppKeyException in production).
-            # Generate one only if missing so redeploys never rotate an
+            # `artisan key:generate` only replaces an existing APP_KEY= line
+            # and errors out if that line is missing entirely (which it was
+            # here), so set the value directly instead. Only touches .env if
+            # a real key isn't already present, so redeploys never rotate an
             # existing key and invalidate live sessions/cookies.
-            grep -q '^APP_KEY=base64:' .env 2>/dev/null || php artisan key:generate --force
+            if ! grep -q '^APP_KEY=base64:' .env 2>/dev/null; then
+              NEWKEY=$(php artisan key:generate --show)
+              if grep -q '^APP_KEY=' .env 2>/dev/null; then
+                sed -i "s|^APP_KEY=.*|APP_KEY=${NEWKEY}|" .env
+              else
+                echo "APP_KEY=${NEWKEY}" >> .env
+              fi
+            fi
             php artisan config:cache
             php artisan route:clear
             php artisan route:cache
