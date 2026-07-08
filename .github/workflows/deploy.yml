@@ -68,10 +68,15 @@ jobs:
             php artisan migrate --force --no-interaction
             echo "✓ Deployment complete"
 
-      # Temporary diagnostics: still 403 after deploying to the right
-      # docroot with valid .env — check for leftover cruft from the old
-      # Hostinger Git deployment, permission chain, and Apache error log.
-      - name: Diagnose remaining 403
+      # One-time cleanup: Hostinger's own Git deployment (now disconnected)
+      # previously deployed the WHOLE monorepo into this docroot instead of
+      # just lekhya-app/, leaving apps/, packages/, .git/, .github/, and a
+      # duplicate nested lekhya-app/ folder sitting alongside our correct
+      # files. An exposed .git/ in the web root is also a real security
+      # issue (source/history becomes downloadable) and commonly triggers
+      # host-level security auto-blocking. Guarded so it only fires once —
+      # it no-ops as soon as this cruft is gone.
+      - name: Clean up leftover monorepo files from old Git deployment
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.HOSTINGER_SSH_HOST }}
@@ -79,23 +84,20 @@ jobs:
           password: ${{ secrets.HOSTINGER_SSH_PASS }}
           port: 65002
           script: |
-            D=~/domains/lekhya.prabhassaas.in
-            echo "=== $D full listing (top level) ===" && ls -la "$D"
-            echo "=== $D/public_html full listing ===" && ls -la "$D/public_html"
-            echo "=== .htaccess at public_html root ===" && cat "$D/public_html/.htaccess" 2>/dev/null || echo MISSING
-            echo "=== public_html/public listing ===" && ls -la "$D/public_html/public" 2>/dev/null || echo MISSING
-            echo "=== permission chain ===" && namei -l "$D/public_html/public/index.php" 2>&1
-            echo "=== write+verify test file ===" && echo ok > "$D/public_html/dt2.txt" && ls -la "$D/public_html/dt2.txt"
-            echo "=== any private_html or logs dir? ===" && ls -la "$D" | grep -iE 'log|private'
-            echo "=== apache/php error log tail if found ===" && (find "$D" -iname '*error*log*' -exec tail -30 {} \; 2>/dev/null || echo "none found under $D") && (find ~/logs -iname '*lekhya*' -exec tail -30 {} \; 2>/dev/null || echo "none found under ~/logs")
-            echo "=== is public_html a symlink? ===" && file "$D/public_html" 2>&1
-            echo "=== .builds structure (depth 5) ===" && find "$D/.builds" -maxdepth 5 2>&1
-            echo "=== DO_NOT_UPLOAD_HERE stat ===" && stat "$D/DO_NOT_UPLOAD_HERE" 2>&1
-            echo "=== any hostinger config hints ===" && (ls -la "$D" | grep -viE '^total|^d.*\s\.\.?$') && find "$D" -maxdepth 1 -iname '*.json' -o -maxdepth 1 -iname '*.yml' -o -maxdepth 1 -iname '*.yaml' 2>&1
+            P=~/domains/lekhya.prabhassaas.in/public_html
+            if [ -d "$P/.git" ] || [ -d "$P/apps" ] || [ -d "$P/lekhya-app" ]; then
+              rm -rf "$P/.git" "$P/.github" "$P/apps" "$P/packages" "$P/lekhya-app" \
+                     "$P/docker-compose.yml" "$P/pnpm-lock.yaml" "$P/pnpm-workspace.yaml" \
+                     "$P/CLAUDE.md"
+              echo "✓ Removed leftover monorepo files from public_html"
+            else
+              echo "Nothing to clean — no monorepo cruft found"
+            fi
 
-      # One-time cleanup: earlier runs mistakenly deployed to the account's
-      # top-level ~/public_html instead of the real docroot above. Remove
-      # the stray Laravel files so they don't sit there unused/exposed.
+      # One-time cleanup: earlier runs of this workflow (before the docroot
+      # fix) mistakenly deployed to the account's top-level ~/public_html
+      # instead of the real docroot above. Remove those stray files so they
+      # don't sit there unused/exposed. Guarded on our own marker file.
       - name: Clean up stray files from old ~/public_html deploys
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -113,7 +115,8 @@ jobs:
                      ~/public_html/package.json ~/public_html/phpunit.xml \
                      ~/public_html/railway.json ~/public_html/README.md \
                      ~/public_html/vite.config.js ~/public_html/Dockerfile \
-                     ~/public_html/deploytest.txt ~/public_html/.htaccess
+                     ~/public_html/deploytest.txt ~/public_html/.htaccess \
+                     ~/public_html/dt2.txt
               echo "✓ Cleaned stray files from ~/public_html"
             else
               echo "Nothing to clean — ~/public_html does not look like a stray Laravel deploy"
