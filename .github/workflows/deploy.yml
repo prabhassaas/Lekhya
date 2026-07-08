@@ -24,16 +24,20 @@ jobs:
         run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
       # Remove the broken absolute symlink from the CI checkout;
-      # artisan storage:link will recreate it correctly on the server.
+      # we recreate it correctly on the server with a plain `ln -sf`
+      # (artisan storage:link fails — exec() is disabled on this host).
       - name: Remove public/storage symlink before upload
         run: rm -f lekhya-app/public/storage
 
-      # SCP lekhya-app/ → public_html/ on Hostinger.
+      # SCP lekhya-app/ → ~/domains/lekhya.prabhassaas.in/public_html/ on Hostinger.
+      # This account hosts multiple domains, each under its own
+      # ~/domains/<domain>/public_html/ — NOT the account's top-level
+      # ~/public_html, which is unused/unrelated to this site.
       # strip_components=1 strips the "lekhya-app" prefix so every file
       # lands directly inside public_html/ (e.g. lekhya-app/public/ → public_html/public/).
       # .env and storage/ contents already on the server are NOT deleted
       # (SCP overwrites but does not delete missing files).
-      - name: Upload lekhya-app to public_html
+      - name: Upload lekhya-app to domains/lekhya.prabhassaas.in/public_html
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOSTINGER_SSH_HOST }}
@@ -41,11 +45,10 @@ jobs:
           password: ${{ secrets.HOSTINGER_SSH_PASS }}
           port: 65002
           source: "lekhya-app"
-          target: "public_html"
+          target: "domains/lekhya.prabhassaas.in/public_html"
           strip_components: 1
           overwrite: true
 
-      # Diagnose server layout then rebuild all caches
       - name: Post-deploy cache refresh
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -55,17 +58,8 @@ jobs:
           port: 65002
           script: |
             set -e
-            echo "=== HOME DIR (full) ===" && ls -la ~/
-            echo "=== domains/ or subdomains/ folder if present ===" && (ls -la ~/domains/ 2>/dev/null || echo "no domains/ folder"); (ls -la ~/subdomains/ 2>/dev/null || echo "no subdomains/ folder")
-            echo "=== public_html TOP-LEVEL ===" && ls ~/public_html/ | head -30
-            echo "=== public_html/.htaccess ===" && cat ~/public_html/.htaccess 2>/dev/null || echo "MISSING"
-            echo "=== public/index.php exists? ===" && ls ~/public_html/public/index.php 2>/dev/null || echo "MISSING"
-            echo "=== PERMISSIONS ===" && stat -c '%a %U:%G %n' ~ ~/public_html ~/public_html/public ~/public_html/public/index.php ~/public_html/.htaccess 2>&1
-            echo "=== PHP version ===" && php -v | head -1
-            echo "test-deploy-marker" > ~/public_html/deploytest.txt
-            echo "=== wrote deploytest.txt ===" && ls -la ~/public_html/deploytest.txt
-            cd ~/public_html
-            php artisan storage:link 2>/dev/null || true
+            cd ~/domains/lekhya.prabhassaas.in/public_html
+            ln -sfn ../storage/app/public public/storage 2>/dev/null || true
             php artisan config:clear
             php artisan config:cache
             php artisan route:clear
@@ -73,3 +67,29 @@ jobs:
             php artisan view:clear
             php artisan migrate --force --no-interaction
             echo "✓ Deployment complete"
+
+      # One-time cleanup: earlier runs mistakenly deployed to the account's
+      # top-level ~/public_html instead of the real docroot above. Remove
+      # the stray Laravel files so they don't sit there unused/exposed.
+      - name: Clean up stray files from old ~/public_html deploys
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          port: 65002
+          script: |
+            if [ -f ~/public_html/artisan ] && [ -f ~/public_html/deploytest.txt ]; then
+              rm -rf ~/public_html/app ~/public_html/bootstrap ~/public_html/config \
+                     ~/public_html/database ~/public_html/docker ~/public_html/public \
+                     ~/public_html/resources ~/public_html/routes ~/public_html/storage \
+                     ~/public_html/tests ~/public_html/vendor ~/public_html/artisan \
+                     ~/public_html/composer.json ~/public_html/composer.lock \
+                     ~/public_html/package.json ~/public_html/phpunit.xml \
+                     ~/public_html/railway.json ~/public_html/README.md \
+                     ~/public_html/vite.config.js ~/public_html/Dockerfile \
+                     ~/public_html/deploytest.txt ~/public_html/.htaccess
+              echo "✓ Cleaned stray files from ~/public_html"
+            else
+              echo "Nothing to clean — ~/public_html does not look like a stray Laravel deploy"
+            fi
