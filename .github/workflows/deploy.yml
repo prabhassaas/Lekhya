@@ -88,6 +88,10 @@ jobs:
             echo "=== write+verify test file ===" && echo ok > "$D/public_html/dt2.txt" && ls -la "$D/public_html/dt2.txt"
             echo "=== any private_html or logs dir? ===" && ls -la "$D" | grep -iE 'log|private'
             echo "=== apache/php error log tail if found ===" && (find "$D" -iname '*error*log*' -exec tail -30 {} \; 2>/dev/null || echo "none found under $D") && (find ~/logs -iname '*lekhya*' -exec tail -30 {} \; 2>/dev/null || echo "none found under ~/logs")
+            echo "=== is public_html a symlink? ===" && file "$D/public_html" 2>&1
+            echo "=== .builds structure (depth 5) ===" && find "$D/.builds" -maxdepth 5 2>&1
+            echo "=== DO_NOT_UPLOAD_HERE stat ===" && stat "$D/DO_NOT_UPLOAD_HERE" 2>&1
+            echo "=== any hostinger config hints ===" && (ls -la "$D" | grep -viE '^total|^d.*\s\.\.?$') && find "$D" -maxdepth 1 -iname '*.json' -o -maxdepth 1 -iname '*.yml' -o -maxdepth 1 -iname '*.yaml' 2>&1
 
       # One-time cleanup: earlier runs mistakenly deployed to the account's
       # top-level ~/public_html instead of the real docroot above. Remove
