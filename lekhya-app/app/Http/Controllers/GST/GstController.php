@@ -26,8 +26,9 @@ class GstController extends Controller {
     public function gstr1(Request $request) {
         $tenantId = auth()->user()->tenant_id;
         $period = $request->get('period', date('mY'));
+        [$month, $year] = [substr($period, 0, 2), substr($period, 2, 4)];
         $invoices = Invoice::where('tenant_id', $tenantId)->where('type', 'sales')
-            ->whereRaw("DATE_FORMAT(invoice_date, '%m%Y') = ?", [$period])
+            ->whereMonth('invoice_date', $month)->whereYear('invoice_date', $year)
             ->where('status', 'posted')
             ->with('party', 'lines')
             ->get();
@@ -38,8 +39,9 @@ class GstController extends Controller {
         $tenantId = auth()->user()->tenant_id;
         $period = $request->input('period');
         $tenant = auth()->user()->tenant;
+        [$month, $year] = [substr($period, 0, 2), substr($period, 2, 4)];
         $invoices = Invoice::where('tenant_id', $tenantId)->where('type', 'sales')
-            ->whereRaw("DATE_FORMAT(invoice_date, '%m%Y') = ?", [$period])
+            ->whereMonth('invoice_date', $month)->whereYear('invoice_date', $year)
             ->where('status', 'posted')->with('party', 'lines')->get();
 
         $b2b = $invoices->filter(fn($i) => $i->party?->gstin)->map(fn($i) => [
