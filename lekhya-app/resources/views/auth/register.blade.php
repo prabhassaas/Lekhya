@@ -248,11 +248,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
           </svg>
         </button>
-
-        <p class="text-center text-sm text-gray-500 mt-5">
-          Already have an account?
-          <a href="{{ route('login') }}" class="text-navy-600 font-semibold hover:underline">Sign in</a>
-        </p>
       </div>
     </div>
 
