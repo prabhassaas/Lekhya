@@ -8,6 +8,24 @@
         <p class="text-xl text-gray-600">Module-wise flowcharts for Lekhya ERP and Lekhya Pramaan (CA edition)</p>
     </div>
 
+    {{-- See it in action — real screenshots from a live demo tenant, not mockups --}}
+    <div class="mb-20">
+        <div class="text-center mb-8">
+            <span class="text-xs font-semibold uppercase tracking-wider text-navy-600 bg-navy-50 px-3 py-1 rounded-full">See it in action</span>
+            <h2 class="text-2xl font-bold text-gray-900 mt-4">Real screens, real numbers</h2>
+            <p class="text-gray-500 mt-1">These are screenshots of the actual app running on demo data — not designs.</p>
+        </div>
+        <div class="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
+            <div class="bg-gray-100 px-4 py-2.5 flex items-center space-x-1.5 border-b border-gray-200">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
+                <span class="ml-3 text-xs text-gray-400">lekhya.prabhassaas.in/dashboard</span>
+            </div>
+            <img src="{{ asset('screenshots/dashboard.png') }}" alt="Lekhya dashboard with live sales, AR/AP, and recent invoices" class="w-full">
+        </div>
+    </div>
+
     {{-- Tab navigation --}}
     <div x-data="{ tab: 'invoice-flow' }" class="space-y-8">
         <div class="flex flex-wrap gap-2 border-b border-gray-200">
@@ -182,6 +200,17 @@
                     <p class="mt-3 text-xs text-gray-500">HSN/SAC code in each line item → rate engine auto-picks the applicable rate from the rate master.</p>
                 </div>
             </div>
+
+            <div class="mt-10 grid md:grid-cols-2 gap-6">
+                <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                    <img src="{{ asset('screenshots/gst-dashboard.png') }}" alt="GST compliance dashboard showing GSTR-1, GSTR-3B, and GSTR-2B reconciliation entry points" class="w-full">
+                    <p class="text-xs text-gray-500 px-4 py-2 bg-gray-50 border-t border-gray-100">GST Dashboard — one place for every return</p>
+                </div>
+                <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                    <img src="{{ asset('screenshots/gst-gstr1.png') }}" alt="GSTR-1 filing screen with real B2B and B2C invoice breakdown and computed CGST/SGST totals" class="w-full">
+                    <p class="text-xs text-gray-500 px-4 py-2 bg-gray-50 border-t border-gray-100">GSTR-1 — auto-computed from posted invoices</p>
+                </div>
+            </div>
         </div>
 
         {{-- Bank Reconciliation Flow --}}
@@ -335,6 +364,24 @@
                             <li>Select company, period, and "All" for data</li>
                             <li>Save as .xml file → Upload to Lekhya</li>
                         </ol>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-10">
+                <h3 class="font-semibold text-gray-900 mb-4 text-center">The import, screen by screen</h3>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                        <img src="{{ asset('screenshots/tally-upload.png') }}" alt="Tally import upload screen with drag-and-drop XML file picker" class="w-full">
+                        <p class="text-xs text-gray-500 px-4 py-2 bg-gray-50 border-t border-gray-100">1. Upload your Tally XML export</p>
+                    </div>
+                    <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                        <img src="{{ asset('screenshots/tally-preview.png') }}" alt="Tally import preview showing parsed groups, ledgers, and vouchers before posting" class="w-full">
+                        <p class="text-xs text-gray-500 px-4 py-2 bg-gray-50 border-t border-gray-100">2. Review the parsed counts before anything posts</p>
+                    </div>
+                    <div class="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                        <img src="{{ asset('screenshots/tally-completed.png') }}" alt="Completed Tally import showing imported record count and import history" class="w-full">
+                        <p class="text-xs text-gray-500 px-4 py-2 bg-gray-50 border-t border-gray-100">3. Done — imported records logged in history</p>
                     </div>
                 </div>
             </div>

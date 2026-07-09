@@ -73,6 +73,7 @@ class ChartOfAccountsSeeder
         $codeToId = [];
         foreach ($accounts as $acc) {
             $parentId = isset($acc['parent_code']) ? ($codeToId[$acc['parent_code']] ?? null) : null;
+            unset($acc['parent_code']);
             $model = Account::firstOrCreate(
                 ['tenant_id' => $tenantId, 'code' => $acc['code']],
                 array_merge($acc, [

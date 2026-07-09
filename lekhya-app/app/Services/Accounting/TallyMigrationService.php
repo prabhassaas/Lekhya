@@ -9,6 +9,7 @@ use App\Models\TallyImport;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use SimpleXMLElement;
 
 /**
@@ -27,7 +28,7 @@ class TallyMigrationService
 
     public function parseAndPreview(TallyImport $import): array
     {
-        $xml = $this->loadXml(storage_path('app/' . $import->file_path));
+        $xml = $this->loadXml(Storage::disk('local')->path($import->file_path));
 
         $summary = [
             'ledgers'  => 0,
@@ -61,7 +62,7 @@ class TallyMigrationService
 
     public function import(TallyImport $import, int $tenantId, int $userId): array
     {
-        $xml = $this->loadXml(storage_path('app/' . $import->file_path));
+        $xml = $this->loadXml(Storage::disk('local')->path($import->file_path));
 
         $import->update(['status' => 'importing', 'started_at' => now()]);
 
