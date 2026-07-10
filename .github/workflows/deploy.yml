@@ -51,11 +51,14 @@ jobs:
 
       - name: Post-deploy cache refresh
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
         with:
           host: ${{ secrets.HOSTINGER_SSH_HOST }}
           username: ${{ secrets.HOSTINGER_SSH_USER }}
           password: ${{ secrets.HOSTINGER_SSH_PASS }}
           port: 65002
+          envs: MAIL_PASSWORD
           script: |
             set -e
             cd ~/domains/lekhya.prabhassaas.in/public_html
@@ -101,6 +104,28 @@ jobs:
             set_env_if_blank SUPABASE_URL "https://ezgfvvqwokxvqmheijmd.supabase.co"
             set_env_if_blank SUPABASE_ANON_KEY "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6Z2Z2dnF3b2t4dnFtaGVpam1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjY1MTIsImV4cCI6MjA5NjkwMjUxMn0.VwmCIsDqIbLzWmmgXqkIiIO5z27fAUitiWhYT7L1pkI"
             set_env_if_blank SUPABASE_SERVICE_KEY "${{ secrets.SUPABASE_SERVICE_KEY }}"
+
+            # ── Email: Hostinger SMTP ─────────────────────────────────────
+            # Force-set (these override Laravel's log-mailer defaults). We
+            # authenticate as the real mailbox admin@ but send *from* the
+            # support@ alias — Hostinger permits sending as any alias of the
+            # authenticated mailbox. The password comes from the MAIL_PASSWORD
+            # GitHub secret, forwarded via envs: (never string-interpolated).
+            set_env_force() {
+              key="$1"; value="$2"
+              [ -z "$value" ] && return 0
+              grep -v "^${key}=" .env > .env.tmp 2>/dev/null || true
+              mv .env.tmp .env
+              echo "${key}=${value}" >> .env
+            }
+            set_env_force MAIL_MAILER "smtp"
+            set_env_force MAIL_SCHEME "smtps"
+            set_env_force MAIL_HOST "smtp.hostinger.com"
+            set_env_force MAIL_PORT "465"
+            set_env_force MAIL_USERNAME "admin@prabhassaas.in"
+            set_env_force MAIL_FROM_ADDRESS "support@prabhassaas.in"
+            set_env_force MAIL_FROM_NAME '"Prabhas SaaS"'
+            [ -n "$MAIL_PASSWORD" ] && set_env_force MAIL_PASSWORD "\"$MAIL_PASSWORD\""
 
             php artisan config:cache
             php artisan route:clear
