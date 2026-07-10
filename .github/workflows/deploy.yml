@@ -80,35 +80,32 @@ jobs:
                 echo "APP_KEY=${NEWKEY}" >> .env
               fi
             fi
+
+            # Ensure Supabase config is present — .env was missing all three
+            # vars entirely, which left the Google SSO client pointed at an
+            # empty URL (permanently stuck on "Redirecting to Google...").
+            # Only fills in a value if the line is missing or blank, so this
+            # never clobbers a value set some other way.
+            set_env_if_blank() {
+              key="$1"; value="$2"
+              [ -z "$value" ] && return 0
+              current=$(grep "^${key}=" .env 2>/dev/null | cut -d= -f2-)
+              if [ -z "$current" ]; then
+                if grep -q "^${key}=" .env 2>/dev/null; then
+                  sed -i "s|^${key}=.*|${key}=${value}|" .env
+                else
+                  echo "${key}=${value}" >> .env
+                fi
+              fi
+            }
+            set_env_if_blank SUPABASE_URL "https://ezgfvvqwokxvqmheijmd.supabase.co"
+            set_env_if_blank SUPABASE_ANON_KEY "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6Z2Z2dnF3b2t4dnFtaGVpam1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjY1MTIsImV4cCI6MjA5NjkwMjUxMn0.VwmCIsDqIbLzWmmgXqkIiIO5z27fAUitiWhYT7L1pkI"
+            set_env_if_blank SUPABASE_SERVICE_KEY "${{ secrets.SUPABASE_SERVICE_KEY }}"
+
             php artisan config:cache
             php artisan route:clear
             php artisan route:cache
             php artisan view:clear
             php artisan migrate --force --no-interaction
             echo "✓ Deployment complete"
-
-      # Temporary: diagnosing stuck Google SSO ("Redirecting to Google...").
-      # Only reports whether keys are SET, never prints the actual values.
-      - name: Check Supabase env vars are set
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.HOSTINGER_SSH_HOST }}
-          username: ${{ secrets.HOSTINGER_SSH_USER }}
-          password: ${{ secrets.HOSTINGER_SSH_PASS }}
-          port: 65002
-          script: |
-            cd ~/domains/lekhya.prabhassaas.in/public_html
-            for key in SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY; do
-              line=$(grep "^${key}=" .env || echo "${key}=MISSING")
-              val="${line#*=}"
-              if [ -z "$val" ]; then
-                echo "$key: EMPTY"
-              elif [ "$val" = "MISSING" ]; then
-                echo "$key: MISSING (no line in .env)"
-              else
-                echo "$key: set (${#val} chars)"
-              fi
-            done
-            echo "=== config('services.supabase') as Laravel sees it ==="
-            php artisan tinker --execute="echo 'url=' . (config('services.supabase.url') ?: '<empty>') . PHP_EOL; echo 'anon_key_len=' . strlen(config('services.supabase.anon_key') ?? '') . PHP_EOL;"
 
