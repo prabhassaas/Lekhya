@@ -3,7 +3,7 @@
 @section('page-title', $type === 'sales' ? 'Sales Invoices' : 'Purchase Invoices')
 
 @section('content')
-<div class="py-4 space-y-6">
+<div class="py-4 space-y-6" x-data="{ scanOpen: false }">
     <div class="flex items-center justify-between">
         <div class="flex gap-2">
             <a href="{{ route('accounting.invoices.index', ['type' => 'sales']) }}"
@@ -11,9 +11,50 @@
             <a href="{{ route('accounting.invoices.index', ['type' => 'purchase']) }}"
                class="px-3 py-1.5 text-sm font-medium rounded-lg {{ $type === 'purchase' ? 'bg-navy-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">Purchase</a>
         </div>
-        <a href="{{ route('accounting.invoices.create', ['type' => $type]) }}" class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">
-            <i class="fa fa-plus mr-1.5"></i>New {{ $type === 'sales' ? 'Sales' : 'Purchase' }} Invoice
-        </a>
+        <div class="flex items-center gap-2">
+            <button type="button" @click="scanOpen = true" class="px-4 py-2 border border-amber-300 text-amber-700 hover:bg-amber-50 text-sm font-medium rounded-lg">
+                <i class="fa fa-wand-magic-sparkles mr-1.5"></i>Scan Invoice (AI)
+            </button>
+            <a href="{{ route('accounting.invoices.create', ['type' => $type]) }}" class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">
+                <i class="fa fa-plus mr-1.5"></i>New {{ $type === 'sales' ? 'Sales' : 'Purchase' }} Invoice
+            </a>
+        </div>
+    </div>
+
+    {{-- Scan / camera modal — reads a PDF or photo of an invoice and drops you on the AI review screen --}}
+    <div x-show="scanOpen" x-cloak class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" @click.self="scanOpen = false">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-semibold text-gray-900">Scan an invoice</h3>
+                <button type="button" @click="scanOpen = false" class="text-gray-400 hover:text-gray-600"><i class="fa fa-xmark"></i></button>
+            </div>
+            <p class="text-sm text-gray-500 mb-5">Upload a PDF/image or snap a photo. AI reads the fields; you review and approve before it posts.</p>
+
+            <div class="grid grid-cols-2 gap-3">
+                {{-- Upload a file (PDF/JPG/PNG) --}}
+                <form action="{{ route('ai.extract') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <label class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-navy-400 rounded-xl p-6 cursor-pointer text-center">
+                        <i class="fa fa-cloud-arrow-up text-2xl text-navy-500"></i>
+                        <span class="text-sm font-medium text-gray-700">Upload file</span>
+                        <span class="text-xs text-gray-400">PDF, JPG, PNG</span>
+                        <input type="file" name="file" class="hidden" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/*" onchange="this.form.submit()">
+                    </label>
+                </form>
+
+                {{-- Take a photo (mobile back camera) --}}
+                <form action="{{ route('ai.extract') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <label class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-navy-400 rounded-xl p-6 cursor-pointer text-center">
+                        <i class="fa fa-camera text-2xl text-navy-500"></i>
+                        <span class="text-sm font-medium text-gray-700">Take photo</span>
+                        <span class="text-xs text-gray-400">Use camera</span>
+                        <input type="file" name="file" class="hidden" accept="image/*" capture="environment" onchange="this.form.submit()">
+                    </label>
+                </form>
+            </div>
+            <p class="text-xs text-gray-400 mt-4"><i class="fa fa-shield-halved mr-1"></i>Nothing posts automatically — you approve every entry.</p>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
