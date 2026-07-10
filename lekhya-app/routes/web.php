@@ -14,6 +14,9 @@ use App\Http\Controllers\AI\AiAssistantController;
 use App\Http\Controllers\Pramaan\UdinController;
 use App\Http\Controllers\Pramaan\AuditReportController;
 use App\Http\Controllers\Pramaan\ComplianceCalendarController;
+use App\Http\Controllers\Pramaan\DscController;
+use App\Http\Controllers\Pramaan\WorkingPaperController;
+use App\Http\Controllers\Pramaan\NoticeController;
 use App\Http\Controllers\Marketing\MarketingController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\SuperAdminController;
@@ -122,9 +125,28 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Lekhya Pramaan (CA Edition)
     Route::middleware('pramaan')->prefix('pramaan')->name('pramaan.')->group(function () {
         Route::resource('udin', UdinController::class);
+
         Route::resource('audit-reports', AuditReportController::class);
+        Route::post('audit-reports/{audit_report}/transition', [AuditReportController::class, 'transition'])->name('audit-reports.transition');
+
         Route::get('compliance-calendar', [ComplianceCalendarController::class, 'index'])->name('calendar');
+        Route::post('compliance-calendar', [ComplianceCalendarController::class, 'store'])->name('calendar.store');
+        Route::patch('compliance-calendar/{item}', [ComplianceCalendarController::class, 'update'])->name('calendar.update');
+
         Route::get('clients', [ComplianceCalendarController::class, 'clients'])->name('clients');
+
+        Route::get('dsc', [DscController::class, 'index'])->name('dsc.index');
+        Route::post('dsc', [DscController::class, 'store'])->name('dsc.store');
+        Route::delete('dsc/{dsc}', [DscController::class, 'destroy'])->name('dsc.destroy');
+
+        Route::get('working-papers', [WorkingPaperController::class, 'index'])->name('papers.index');
+        Route::post('working-papers', [WorkingPaperController::class, 'store'])->name('papers.store');
+        Route::delete('working-papers/{paper}', [WorkingPaperController::class, 'destroy'])->name('papers.destroy');
+
+        Route::get('notices', [NoticeController::class, 'index'])->name('notices.index');
+        Route::post('notices', [NoticeController::class, 'store'])->name('notices.store');
+        Route::patch('notices/{notice}', [NoticeController::class, 'update'])->name('notices.update');
+        Route::delete('notices/{notice}', [NoticeController::class, 'destroy'])->name('notices.destroy');
     });
 
     // Settings

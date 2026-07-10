@@ -107,5 +107,12 @@ jobs:
             php artisan route:cache
             php artisan view:clear
             php artisan migrate --force --no-interaction
+
+            # Demo data (both seeders are idempotent — skip if already present).
+            # DemoDataSeeder ensures the demo tenant/invoices exist; PramaanDemoSeeder
+            # enables the CA edition + seeds UDIN/audit/compliance/notice data.
+            # Strict-scoped to the demo tenant only — never touches real accounts.
+            php artisan db:seed --class=DemoDataSeeder --force --no-interaction || true
+            php artisan db:seed --class=PramaanDemoSeeder --force --no-interaction || true
             echo "✓ Deployment complete"
 

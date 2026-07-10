@@ -23,6 +23,12 @@ class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
+        // Idempotent — safe to run on every deploy. Skip if already seeded.
+        if (Tenant::where('slug', 'suvarna-textiles-demo')->exists()) {
+            $this->command?->info('Demo tenant already present — skipping DemoDataSeeder.');
+            return;
+        }
+
         $tenant = Tenant::create([
             'name'        => 'Suvarna Textiles Pvt Ltd',
             'slug'        => 'suvarna-textiles-demo',

@@ -134,16 +134,25 @@
             <div class="pt-3 pb-1">
                 <p class="px-2 text-xs font-semibold text-blue-300 uppercase tracking-wider">Pramaan — CA</p>
             </div>
-            <a href="{{ route('pramaan.udin.index') }}" class="nav-link @active('pramaan.*')">
+            <a href="{{ route('pramaan.udin.index') }}" class="nav-link @active('pramaan.udin.*')">
                 <i class="fa fa-certificate w-5"></i> <span>UDIN Register</span>
             </a>
-            <a href="{{ route('pramaan.audit-reports.index') }}" class="nav-link">
+            <a href="{{ route('pramaan.audit-reports.index') }}" class="nav-link @active('pramaan.audit-reports.*')">
                 <i class="fa fa-scroll w-5"></i> <span>Audit Reports</span>
             </a>
-            <a href="{{ route('pramaan.calendar') }}" class="nav-link">
+            <a href="{{ route('pramaan.papers.index') }}" class="nav-link @active('pramaan.papers.*')">
+                <i class="fa fa-folder-open w-5"></i> <span>Working Papers</span>
+            </a>
+            <a href="{{ route('pramaan.dsc.index') }}" class="nav-link @active('pramaan.dsc.*')">
+                <i class="fa fa-signature w-5"></i> <span>DSC Vault</span>
+            </a>
+            <a href="{{ route('pramaan.calendar') }}" class="nav-link @active('pramaan.calendar')">
                 <i class="fa fa-calendar-check w-5"></i> <span>Compliance Calendar</span>
             </a>
-            <a href="{{ route('pramaan.clients') }}" class="nav-link">
+            <a href="{{ route('pramaan.notices.index') }}" class="nav-link @active('pramaan.notices.*')">
+                <i class="fa fa-triangle-exclamation w-5"></i> <span>Notice Tracker</span>
+            </a>
+            <a href="{{ route('pramaan.clients') }}" class="nav-link @active('pramaan.clients')">
                 <i class="fa fa-users w-5"></i> <span>All Clients</span>
             </a>
             @endif
