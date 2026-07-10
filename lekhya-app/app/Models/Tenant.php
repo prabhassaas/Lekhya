@@ -39,6 +39,11 @@ class Tenant extends Model
         return $this->hasMany(Entitlement::class);
     }
 
+    public function aiSetting()
+    {
+        return $this->hasOne(AiSetting::class);
+    }
+
     public function accounts(): HasMany
     {
         return $this->hasMany(Account::class);

@@ -7,20 +7,56 @@
     $hsnRates = ($hsnCodes ?? collect())->keyBy('code')->map(fn($h) => ['cgst' => (float) $h->cgst_rate, 'sgst' => (float) $h->sgst_rate, 'igst' => (float) $h->igst_rate]);
     $partyStates = ($parties ?? collect())->keyBy('id')->map(fn($p) => $p->state_code);
     $supplierState = ($tenant ?? null)?->state_code;
+    $prefill = $prefill ?? null;
+    $initLines = $prefill['lines'] ?? [['description' => '', 'hsn_sac_code' => '', 'quantity' => 1, 'rate' => '', 'discount_percent' => 0]];
+    $amberFields = collect($prefill['validation']['fields'] ?? [])->filter(fn($f) => $f['status'] === 'amber');
+    $failedChecks = collect($prefill['validation']['checks'] ?? [])->filter(fn($c) => ! $c['ok']);
 @endphp
+
+@if($prefill)
+<div class="max-w-5xl mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+    <div class="flex items-start gap-3">
+        <i class="fa fa-wand-magic-sparkles text-amber-600 mt-0.5"></i>
+        <div class="flex-1">
+            <p class="font-semibold text-amber-900 text-sm">Pre-filled from AI invoice scan — please verify before saving.</p>
+            @if(!$prefill['party_matched'])
+            <p class="text-sm text-amber-800 mt-1">
+                Vendor/customer <strong>“{{ $prefill['party_name'] ?: 'not detected' }}”</strong> isn’t in your parties yet — select the right one below{{ $prefill['party_name'] ? ' or add it' : '' }}.
+            </p>
+            @endif
+            @if($amberFields->isNotEmpty() || $failedChecks->isNotEmpty())
+            <div class="mt-2 text-xs text-amber-800 space-y-0.5">
+                @foreach($failedChecks as $c)
+                <div><i class="fa fa-triangle-exclamation mr-1"></i>{{ $c['label'] }}: {{ $c['message'] }}</div>
+                @endforeach
+                @foreach($amberFields as $name => $f)
+                <div><i class="fa fa-circle-exclamation mr-1"></i>{{ ucwords(str_replace('_', ' ', $name)) }} — {{ $f['reason'] ?? 'confirm this value' }}</div>
+                @endforeach
+            </div>
+            @else
+            <p class="text-xs text-amber-700 mt-1"><i class="fa fa-circle-check mr-1"></i>All fields passed the GST math &amp; format checks — a quick glance and you’re done.</p>
+            @endif
+        </div>
+    </div>
+</div>
+@endif
 <div class="py-4 max-w-5xl"
      x-data="{
         supplierState: {{ json_encode($supplierState) }},
         partyStates: {{ $partyStates->toJson() }},
         hsnRates: {{ $hsnRates->toJson() }},
-        partyId: '',
-        lines: [{description: '', hsn_sac_code: '', quantity: 1, rate: '', discount_percent: 0}],
+        partyId: '{{ $prefill['party_id'] ?? '' }}',
+        lines: {{ json_encode($initLines) }},
         addLine() { this.lines.push({description: '', hsn_sac_code: '', quantity: 1, rate: '', discount_percent: 0}); },
         removeLine(i) { if (this.lines.length > 1) this.lines.splice(i, 1); },
         isInterstate() { return this.partyId && this.supplierState && this.partyStates[this.partyId] && this.partyStates[this.partyId] !== this.supplierState; },
         lineTaxable(l) { return (parseFloat(l.quantity)||0) * (parseFloat(l.rate)||0) * (1 - (parseFloat(l.discount_percent)||0)/100); },
         lineTax(l) {
-            const r = this.hsnRates[l.hsn_sac_code] || {cgst:9, sgst:9, igst:18};
+            let r = this.hsnRates[l.hsn_sac_code];
+            if (!r) {
+                const g = parseFloat(l.gst_rate);
+                r = g ? {cgst: g/2, sgst: g/2, igst: g} : {cgst:9, sgst:9, igst:18};
+            }
             const t = this.lineTaxable(l);
             return this.isInterstate() ? t * r.igst / 100 : t * (r.cgst + r.sgst) / 100;
         },
@@ -46,7 +82,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Invoice Date <span class="text-red-500">*</span></label>
-                    <input type="date" name="invoice_date" required value="{{ old('invoice_date', date('Y-m-d')) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="date" name="invoice_date" required value="{{ old('invoice_date', $prefill['invoice_date'] ?? date('Y-m-d')) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 </div>
             </div>
 
