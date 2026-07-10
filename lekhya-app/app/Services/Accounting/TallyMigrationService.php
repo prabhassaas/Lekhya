@@ -259,8 +259,8 @@ class TallyMigrationService
     private function mapTallyGroupToType(string $group): string
     {
         return match (true) {
-            in_array($group, ['Current Assets', 'Fixed Assets', 'Investments', 'Loans & Advances (Asset)']) => 'asset',
-            in_array($group, ['Current Liabilities', 'Loans (Liability)', 'Secured Loans', 'Unsecured Loans']) => 'liability',
+            in_array($group, ['Current Assets', 'Fixed Assets', 'Investments', 'Loans & Advances (Asset)', 'Sundry Debtors', 'Branch / Divisions']) => 'asset',
+            in_array($group, ['Current Liabilities', 'Loans (Liability)', 'Secured Loans', 'Unsecured Loans', 'Sundry Creditors', 'Duties & Taxes']) => 'liability',
             in_array($group, ['Capital Account', 'Reserves & Surplus']) => 'equity',
             in_array($group, ['Sales Accounts', 'Indirect Incomes', 'Other Income']) => 'revenue',
             default => 'expense',
@@ -270,9 +270,9 @@ class TallyMigrationService
     private function mapTallyGroupToSubType(string $group): string
     {
         return match ($group) {
-            'Current Assets'         => 'current_asset',
+            'Current Assets', 'Sundry Debtors', 'Branch / Divisions' => 'current_asset',
             'Fixed Assets'           => 'fixed_asset',
-            'Current Liabilities'    => 'current_liability',
+            'Current Liabilities', 'Sundry Creditors', 'Duties & Taxes' => 'current_liability',
             'Secured Loans', 'Unsecured Loans', 'Loans (Liability)' => 'long_term_liability',
             'Capital Account', 'Reserves & Surplus' => 'equity',
             'Sales Accounts'         => 'revenue',

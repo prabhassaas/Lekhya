@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,13 +37,16 @@ class Account extends Model
     }
 
     // Compute balance from journal lines
-    public function getBalance(string $from = null, string $to = null): array
+    public function getBalance(?string $from = null, ?string $to = null): array
     {
         $query = $this->journalLines()
             ->whereHas('journal', fn($q) => $q->where('is_posted', true));
 
-        if ($from) $query->whereHas('journal', fn($q) => $q->where('date', '>=', $from));
-        if ($to) $query->whereHas('journal', fn($q) => $q->where('date', '<=', $to));
+        // Journal dates are stored as full datetimes; a plain Y-m-d boundary compared as
+        // TEXT (SQLite) would otherwise exclude same-day entries, since e.g. the string
+        // "2026-07-10 00:00:00" sorts after its own prefix "2026-07-10".
+        if ($from) $query->whereHas('journal', fn($q) => $q->where('date', '>=', Carbon::parse($from)->startOfDay()));
+        if ($to) $query->whereHas('journal', fn($q) => $q->where('date', '<=', Carbon::parse($to)->endOfDay()));
 
         $debit = $query->sum('debit');
         $credit = $query->sum('credit');

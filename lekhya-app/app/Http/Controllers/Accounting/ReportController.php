@@ -28,16 +28,24 @@ class ReportController extends Controller {
     public function balanceSheet(Request $request) {
         $tenantId = auth()->user()->tenant_id;
         $asOf = $request->get('as_of', date('Y-m-d'));
+        $fyStartYear = Carbon::parse($asOf)->month >= 4 ? Carbon::parse($asOf)->year : Carbon::parse($asOf)->year - 1;
+        $fyStart = "{$fyStartYear}-04-01";
 
         $assets      = $this->getAccountBalances($tenantId, 'asset', null, $asOf);
         $liabilities = $this->getAccountBalances($tenantId, 'liability', null, $asOf);
         $equity      = $this->getAccountBalances($tenantId, 'equity', null, $asOf);
 
+        // Revenue/expense accounts don't carry into the balance sheet directly — their
+        // net for the fiscal year to date rolls up into equity as unclosed current earnings.
+        $revenueTotal    = collect($this->getAccountBalances($tenantId, 'revenue', $fyStart, $asOf))->sum('net');
+        $expenseTotal    = collect($this->getAccountBalances($tenantId, 'expense', $fyStart, $asOf))->sum('net');
+        $currentEarnings = $revenueTotal - $expenseTotal;
+
         $totalAssets      = collect($assets)->sum('net');
         $totalLiabilities = collect($liabilities)->sum('net');
-        $totalEquity      = collect($equity)->sum('net');
+        $totalEquity      = collect($equity)->sum('net') + $currentEarnings;
 
-        return view('accounting.reports.balance-sheet', compact('assets','liabilities','equity','totalAssets','totalLiabilities','totalEquity','asOf'));
+        return view('accounting.reports.balance-sheet', compact('assets','liabilities','equity','totalAssets','totalLiabilities','totalEquity','asOf','currentEarnings'));
     }
 
     public function trialBalance(Request $request) {
@@ -91,7 +99,13 @@ class ReportController extends Controller {
     private function getAccountBalances(int $tenantId, string $type, ?string $from, ?string $to, ?string $subType = null): array {
         $query = Account::where('tenant_id', $tenantId)->where('type', $type)->where('is_ledger', true);
         if ($subType) $query->where('sub_type', $subType);
-        return $query->get()->map(fn($a) => ['account' => $a, 'net' => $a->getBalance($from, $to)['net']])->all();
+        // getBalance() returns raw (debit - credit). Liability/equity/revenue accounts are
+        // credit-normal, so flip the sign to show their natural balance as a positive figure.
+        $creditNormal = in_array($type, ['liability', 'equity', 'revenue']);
+        return $query->get()->map(function ($a) use ($from, $to, $creditNormal) {
+            $net = $a->getBalance($from, $to)['net'];
+            return ['account' => $a, 'net' => $creditNormal ? -$net : $net];
+        })->all();
     }
 
     private function agingBucket(int $days): string {
