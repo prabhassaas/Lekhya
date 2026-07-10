@@ -157,6 +157,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::put('company', [TenantController::class, 'update'])->name('company.update');
         Route::get('fiscal-years', [TenantController::class, 'fiscalYears'])->name('fiscal_years');
         Route::get('billing', [TenantController::class, 'billing'])->name('billing');
+        Route::post('billing/test-invoice', [TenantController::class, 'testInvoice'])->name('billing.test');
 
         // AI / OCR configuration (per-tenant Groq key, encrypted)
         Route::get('ai', [AiSettingsController::class, 'edit'])->name('ai');
