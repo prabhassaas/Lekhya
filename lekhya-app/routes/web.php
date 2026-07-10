@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\SuperAdminController;
 use App\Http\Controllers\Auth\SsoController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Settings\UserManagementController;
+use App\Http\Controllers\Settings\AiSettingsController;
 use Illuminate\Support\Facades\Route;
 
 // ── Marketing / Public pages
@@ -156,6 +157,11 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::put('company', [TenantController::class, 'update'])->name('company.update');
         Route::get('fiscal-years', [TenantController::class, 'fiscalYears'])->name('fiscal_years');
         Route::get('billing', [TenantController::class, 'billing'])->name('billing');
+
+        // AI / OCR configuration (per-tenant Groq key, encrypted)
+        Route::get('ai', [AiSettingsController::class, 'edit'])->name('ai');
+        Route::put('ai', [AiSettingsController::class, 'update'])->name('ai.update');
+        Route::post('ai/test', [AiSettingsController::class, 'test'])->name('ai.test');
 
         // Users & RBAC (Brief 1B)
         Route::get('users', [UserManagementController::class, 'index'])->name('users');

@@ -1,9 +1,10 @@
 <?php
 namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
-use App\Models\{Invoice, Party, FiscalYear, Account, HsnSacCode};
+use App\Models\{Invoice, Party, FiscalYear, Account, HsnSacCode, AiSuggestion};
 use App\Services\Accounting\InvoicePostingService;
 use App\Services\GST\GstRateEngine;
+use App\Services\AI\InvoiceExtractionValidator;
 use Illuminate\Http\Request;
 
 class InvoiceController extends Controller {
@@ -28,7 +29,57 @@ class InvoiceController extends Controller {
         $accounts = Account::where('tenant_id', $tenantId)->where('is_ledger', true)->get();
         $hsnCodes = HsnSacCode::limit(200)->get();
         $fiscalYear = FiscalYear::where('tenant_id', $tenantId)->where('is_current', true)->first();
-        return view('accounting.invoices.form', compact('parties', 'accounts', 'hsnCodes', 'type', 'fiscalYear', 'tenant'));
+
+        // Pre-fill from an approved AI invoice extraction (?ai_suggestion=id).
+        $prefill = $this->prefillFromExtraction($request, $tenantId, $parties);
+
+        return view('accounting.invoices.form', compact('parties', 'accounts', 'hsnCodes', 'type', 'fiscalYear', 'tenant', 'prefill'));
+    }
+
+    private function prefillFromExtraction(Request $request, int $tenantId, $parties): ?array {
+        if (! $request->filled('ai_suggestion')) {
+            return null;
+        }
+        $suggestion = AiSuggestion::where('tenant_id', $tenantId)
+            ->where('type', 'extraction')
+            ->find($request->get('ai_suggestion'));
+        if (! $suggestion) {
+            return null;
+        }
+
+        $ex = $suggestion->suggestion ?? [];
+
+        // Match the extracted party to an existing one — by GSTIN first, then name.
+        $gstin = strtoupper((string) ($ex['party_gstin'] ?? ''));
+        $name  = trim((string) ($ex['party_name'] ?? ''));
+        $match = null;
+        if ($gstin) {
+            $match = $parties->first(fn($p) => strtoupper((string) $p->gstin) === $gstin);
+        }
+        if (! $match && $name) {
+            $match = $parties->first(fn($p) => strcasecmp(trim((string) $p->name), $name) === 0);
+        }
+
+        $lines = collect($ex['lines'] ?? [])->map(fn($l) => [
+            'description'      => $l['description'] ?? '',
+            'hsn_sac_code'     => (string) ($l['hsn_sac'] ?? $l['hsn_sac_code'] ?? ''),
+            'quantity'         => $l['quantity'] ?? 1,
+            'rate'             => $l['rate'] ?? ($l['amount'] ?? ''),
+            'discount_percent' => 0,
+            'gst_rate'         => $l['gst_rate'] ?? null, // preview fallback when HSN isn't in the rate table
+        ])->values()->all();
+
+        $validation = app(InvoiceExtractionValidator::class)->validate($ex);
+
+        return [
+            'suggestion_id' => $suggestion->id,
+            'party_id'      => $match?->id,
+            'party_name'    => $name,
+            'party_matched' => (bool) $match,
+            'invoice_date'  => $ex['invoice_date'] ?? null,
+            'lines'         => $lines ?: null,
+            'validation'    => $validation,
+        ];
     }
 
     public function store(Request $request) {

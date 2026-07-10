@@ -1,8 +1,10 @@
 <?php
 namespace App\Services\AI;
 
+use App\Models\AiSetting;
 use App\Services\AI\Contracts\AiDriverInterface;
 use App\Services\AI\Drivers\AnthropicDriver;
+use App\Services\AI\Drivers\GroqDriver;
 use App\Services\AI\Drivers\MockDriver;
 use App\Services\AI\Drivers\OllamaDriver;
 use Illuminate\Http\UploadedFile;
@@ -19,30 +21,62 @@ class AiService
 
     private function resolveDriver(): AiDriverInterface
     {
-        $configured = config('services.ai.driver', 'ollama');
-
-        $driver = match ($configured) {
-            'anthropic' => new AnthropicDriver(),
-            'mock'      => new MockDriver(),
-            default     => new OllamaDriver(),
-        };
-
-        // Auto-fallback chain: if primary unavailable, try next available
-        if (!$driver->isAvailable()) {
-            Log::info("AI driver [{$configured}] unavailable, trying fallback chain");
-
-            if ($configured !== 'anthropic' && (new AnthropicDriver())->isAvailable()) {
-                return new AnthropicDriver();
+        // 1. Per-tenant key from ai_settings takes priority (this is where a
+        //    user's own Groq key lives — encrypted, never in env or git).
+        $setting = $this->tenantSetting();
+        if ($setting && $setting->is_active && $setting->hasKey()) {
+            $driver = $this->build($setting->provider, [
+                'api_key'      => $setting->api_key,
+                'text_model'   => $setting->text_model,
+                'vision_model' => $setting->vision_model,
+            ]);
+            if ($driver && $driver->isAvailable()) {
+                return $driver;
             }
-            return new MockDriver();
         }
 
-        return $driver;
+        // 2. Fall back to the global env-configured driver.
+        $configured = config('services.ai.driver', 'ollama');
+        $driver = $this->build($configured);
+
+        if ($driver && $driver->isAvailable()) {
+            return $driver;
+        }
+
+        // 3. Last resort: try Groq/Anthropic env keys, else mock.
+        Log::info("AI driver [{$configured}] unavailable, trying fallback chain");
+        foreach (['groq', 'anthropic'] as $fallback) {
+            if ($fallback !== $configured) {
+                $d = $this->build($fallback);
+                if ($d && $d->isAvailable()) {
+                    return $d;
+                }
+            }
+        }
+        return new MockDriver();
+    }
+
+    private function build(string $provider, array $config = []): ?AiDriverInterface
+    {
+        return match ($provider) {
+            'groq'      => new GroqDriver($config),
+            'anthropic' => new AnthropicDriver(),
+            'mock'      => new MockDriver(),
+            'ollama'    => new OllamaDriver(),
+            default     => null,
+        };
+    }
+
+    private function tenantSetting(): ?AiSetting
+    {
+        // Only available inside an authenticated web request; safe (null) on CLI/queue.
+        return auth()->check() ? auth()->user()->tenant?->aiSetting : null;
     }
 
     public function getDriverName(): string
     {
         return match (true) {
+            $this->driver instanceof GroqDriver      => 'groq',
             $this->driver instanceof OllamaDriver    => 'ollama',
             $this->driver instanceof AnthropicDriver => 'anthropic',
             default                                  => 'mock',

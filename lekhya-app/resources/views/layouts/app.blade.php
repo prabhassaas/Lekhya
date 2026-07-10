@@ -129,6 +129,9 @@
             <a href="{{ route('ai.index') }}" class="nav-link @active('ai.*')">
                 <i class="fa fa-robot w-5"></i> <span>AI Assistant</span>
             </a>
+            <a href="{{ route('settings.ai') }}" class="nav-link @active('settings.ai')">
+                <i class="fa fa-wand-magic-sparkles w-5"></i> <span>AI / OCR Setup</span>
+            </a>
 
             @if(auth()->user()->tenant?->isPramaan())
             <div class="pt-3 pb-1">
