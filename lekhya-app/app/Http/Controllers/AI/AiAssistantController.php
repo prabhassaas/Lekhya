@@ -44,7 +44,9 @@ class AiAssistantController extends Controller
             'model_metadata'=> ['driver' => $this->ai->getDriverName(), 'is_mock' => $result['_mock'] ?? false],
         ]);
 
-        return back()->with('success', "Invoice extracted from \"{$file->getClientOriginalName()}\". Review the suggestion below.");
+        // Land on the review page regardless of where the upload came from
+        // (AI page, invoices page, or a phone camera capture).
+        return redirect()->route('ai.index')->with('success', "Invoice read from \"{$file->getClientOriginalName()}\". Review and approve the suggestion below.");
     }
 
     public function naturalLanguageQuery(Request $request)

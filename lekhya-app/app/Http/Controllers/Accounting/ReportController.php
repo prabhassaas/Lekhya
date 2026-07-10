@@ -87,12 +87,21 @@ class ReportController extends Controller {
     }
 
     public function exportPdf(string $type, Request $request) {
+        $allowed = ['profit-loss', 'balance-sheet', 'trial-balance', 'ar-aging', 'ap-aging'];
+        abort_unless(in_array($type, $allowed, true), 404);
+
         $data = match($type) {
-            'profit-loss'  => $this->profitLoss($request)->getData(),
-            'balance-sheet'=> $this->balanceSheet($request)->getData(),
-            default        => [],
+            'profit-loss'   => $this->profitLoss($request)->getData(),
+            'balance-sheet' => $this->balanceSheet($request)->getData(),
+            'trial-balance' => $this->trialBalance($request)->getData(),
+            'ar-aging'      => $this->arAging($request)->getData(),
+            'ap-aging'      => $this->apAging($request)->getData(),
         };
-        $pdf = Pdf::loadView("accounting.reports.{$type}-pdf", $data)->setPaper('A4');
+        $data['tenant']      = auth()->user()->tenant;
+        $data['generatedAt'] = now();
+        $data['reportType']  = $type;
+
+        $pdf = Pdf::loadView("accounting.reports.pdf.{$type}", $data)->setPaper('A4');
         return $pdf->download("lekhya-{$type}-" . date('Y-m-d') . '.pdf');
     }
 

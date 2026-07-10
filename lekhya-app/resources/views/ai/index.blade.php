@@ -74,13 +74,22 @@
             <p class="text-sm text-gray-600 font-medium" x-text="file ? file.name : 'Click or drag & drop'"></p>
             <p class="text-xs text-gray-400 mt-1">PDF, PNG, JPG — max 10 MB</p>
           </div>
-          <input type="file" name="file" x-ref="fileInput" class="hidden" accept=".pdf,.png,.jpg,.jpeg"
+          <input type="file" name="file" x-ref="fileInput" class="hidden" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/*"
                  @change="file=$event.target.files[0]">
 
           <button type="submit" x-show="file"
             class="mt-4 w-full py-2.5 bg-navy-600 text-white rounded-lg text-sm font-semibold hover:bg-navy-700 transition-colors">
             <i class="fa fa-brain mr-2"></i>Extract Invoice
           </button>
+        </form>
+
+        {{-- Camera capture — separate form so the empty input never clobbers the upload above --}}
+        <form action="{{ route('ai.extract') }}" method="POST" enctype="multipart/form-data" class="mt-3">
+          @csrf
+          <label class="flex items-center justify-center gap-2 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:border-navy-400 cursor-pointer">
+            <i class="fa fa-camera"></i> Take a photo instead
+            <input type="file" name="file" class="hidden" accept="image/*" capture="environment" onchange="this.form.submit()">
+          </label>
         </form>
       </div>
 
