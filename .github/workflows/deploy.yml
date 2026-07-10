@@ -87,3 +87,28 @@ jobs:
             php artisan migrate --force --no-interaction
             echo "✓ Deployment complete"
 
+      # Temporary: diagnosing stuck Google SSO ("Redirecting to Google...").
+      # Only reports whether keys are SET, never prints the actual values.
+      - name: Check Supabase env vars are set
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          port: 65002
+          script: |
+            cd ~/domains/lekhya.prabhassaas.in/public_html
+            for key in SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY; do
+              line=$(grep "^${key}=" .env || echo "${key}=MISSING")
+              val="${line#*=}"
+              if [ -z "$val" ]; then
+                echo "$key: EMPTY"
+              elif [ "$val" = "MISSING" ]; then
+                echo "$key: MISSING (no line in .env)"
+              else
+                echo "$key: set (${#val} chars)"
+              fi
+            done
+            echo "=== config('services.supabase') as Laravel sees it ==="
+            php artisan tinker --execute="echo 'url=' . (config('services.supabase.url') ?: '<empty>') . PHP_EOL; echo 'anon_key_len=' . strlen(config('services.supabase.anon_key') ?? '') . PHP_EOL;"
+
