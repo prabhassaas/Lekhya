@@ -6,7 +6,9 @@
 @php
     $entitlement = $tenant?->entitlements()->where('app','lekhya')->where('is_active',true)->first();
 @endphp
-<div class="py-4 max-w-2xl space-y-6">
+<div class="py-4 max-w-3xl">
+    @include('settings._nav')
+    <div class="max-w-2xl space-y-6">
 
     {{-- Current plan --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
@@ -47,5 +49,6 @@
     <p class="text-xs text-gray-400">
         Razorpay recurring billing is coming in the subscription manager. Invoices already generate and email automatically once a payment is recorded.
     </p>
+    </div>
 </div>
 @endsection

@@ -156,6 +156,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('company', [TenantController::class, 'edit'])->name('company');
         Route::put('company', [TenantController::class, 'update'])->name('company.update');
         Route::get('fiscal-years', [TenantController::class, 'fiscalYears'])->name('fiscal_years');
+        Route::post('fiscal-years', [TenantController::class, 'storeFiscalYear'])->name('fiscal_years.store');
+        Route::patch('fiscal-years/{fiscalYear}/current', [TenantController::class, 'setCurrentFiscalYear'])->name('fiscal_years.current');
         Route::get('billing', [TenantController::class, 'billing'])->name('billing');
         Route::post('billing/test-invoice', [TenantController::class, 'testInvoice'])->name('billing.test');
 
