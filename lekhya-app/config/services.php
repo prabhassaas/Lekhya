@@ -66,7 +66,7 @@ return [
     'prabhas' => [
         'sso_secret'     => env('PRABHAS_SSO_SECRET'),
         'accounts_url'   => env('PRABHAS_ACCOUNTS_URL', 'https://accounts.prabhas.in'),
-        'seedhabill_url' => env('PRABHAS_SEEDHABILL_URL', 'https://seedhabill.in'),
+        'seedhabill_url' => env('PRABHAS_SEEDHABILL_URL', 'https://prabhassaas.in/app/seedhabill/app.html'),
         'logout_url'     => env('PRABHAS_LOGOUT_URL', 'https://accounts.prabhas.in/logout'),
     ],
 ];

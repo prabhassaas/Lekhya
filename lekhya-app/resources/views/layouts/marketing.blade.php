@@ -63,7 +63,7 @@
                             <span>Lekhya ERP</span>
                             <i class="fa fa-check text-navy-600 text-xs"></i>
                         </a>
-                        <a href="{{ config('services.prabhas.seedhabill_url', 'https://seedhabill.in') }}" target="_blank" rel="noopener"
+                        <a href="{{ config('services.prabhas.seedhabill_url', 'https://prabhassaas.in/app/seedhabill/app.html') }}" target="_blank" rel="noopener"
                            class="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                             <span>SeedhaBill</span>
                             <i class="fa fa-arrow-up-right-from-square text-gray-400 text-xs"></i>
@@ -152,7 +152,7 @@
                 </div>
             </div>
             <a href="{{ route('dashboard') }}" class="block py-2 text-navy-600 font-semibold text-sm">Open Dashboard</a>
-            <a href="{{ config('services.prabhas.seedhabill_url', 'https://seedhabill.in') }}" target="_blank" rel="noopener"
+            <a href="{{ config('services.prabhas.seedhabill_url', 'https://prabhassaas.in/app/seedhabill/app.html') }}" target="_blank" rel="noopener"
                class="block py-2 text-gray-700 text-sm">SeedhaBill <i class="fa fa-arrow-up-right-from-square text-xs ml-0.5"></i></a>
             <a href="{{ config('services.prabhas.accounts_url', 'https://accounts.prabhas.in') }}" target="_blank" rel="noopener"
                class="block py-2 text-gray-700 text-sm">Manage Apps</a>
