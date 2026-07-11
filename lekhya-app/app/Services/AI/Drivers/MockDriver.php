@@ -11,9 +11,14 @@ class MockDriver implements AiDriverInterface
             'invoice_number'  => 'INV-MOCK-001',
             'invoice_date'    => now()->format('Y-m-d'),
             'due_date'        => now()->addDays(30)->format('Y-m-d'),
-            'party_name'      => 'Mock Supplier Pvt Ltd',
-            'party_gstin'     => '29AABCT1332L1ZV',
-            'party_address'   => '123 Commercial St, Bengaluru 560001',
+            // Seller (vendor) issued the bill; buyer is billed to. Kept distinct
+            // so the seller/buyer normalization is exercised in mock mode too.
+            'seller_name'     => 'Mock Supplier Pvt Ltd',
+            'seller_gstin'    => '29AABCT1332L1ZV',
+            'seller_address'  => '123 Commercial St, Bengaluru 560001',
+            'buyer_name'      => 'Mock Buyer Enterprises',
+            'buyer_gstin'     => '27AAECB1234F1Z5',
+            'buyer_address'   => '45 Trade Center, Mumbai 400001',
             'lines'           => [
                 ['description' => 'Professional Services', 'hsn_sac' => '998313', 'quantity' => 1, 'rate' => 10000.00, 'amount' => 10000.00, 'gst_rate' => 18],
             ],

@@ -110,8 +110,13 @@ class GroqDriver implements AiDriverInterface
     private function invoiceExtractionPrompt(string $text): string
     {
         return "You are an expert Indian GST invoice reader. Extract EVERY detail as JSON from the invoice below — miss nothing.\n\n{$text}\n\n"
+            . "A GST tax invoice always has TWO DIFFERENT parties — keep them strictly separate, never merge or swap them:\n"
+            . "• SELLER (a.k.a. supplier / vendor): the party that ISSUED and RAISED this invoice. Find them on the letterhead at the top, in the 'For <company>' line above the signature, next to 'Authorised Signatory', and in the bank / UPI details given for payment — those belong to the SELLER.\n"
+            . "• BUYER (a.k.a. recipient / customer): the party the invoice is billed TO — under headings like 'Bill To', 'Billed To', 'Buyer', \"Buyer's Details\", 'Bill To Party', 'Party', 'Customer', or 'Consignee'.\n"
+            . "The two are never the same entity. A GSTIN printed next to 'Bill To' / 'Buyer' is the BUYER's, NOT the seller's — do not report it as the seller.\n\n"
             . "Return ONLY JSON with fields: invoice_number, invoice_date (YYYY-MM-DD), due_date (YYYY-MM-DD or null), "
-            . "party_name, party_gstin, party_pan, party_address, party_email, party_phone, "
+            . "seller_name, seller_gstin, seller_pan, seller_address, seller_email, seller_phone, "
+            . "buyer_name, buyer_gstin, buyer_pan, buyer_address, buyer_email, buyer_phone, "
             . "lines (array of {description, hsn_sac, quantity, unit, rate, discount_percent, amount, gst_rate}), "
             . "subtotal, cgst_amount, sgst_amount, igst_amount, cess_amount, round_off, total_amount, currency, "
             . "place_of_supply, reverse_charge (true/false), payment_terms, notes, "

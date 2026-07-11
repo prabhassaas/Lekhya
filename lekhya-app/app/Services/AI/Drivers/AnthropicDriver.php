@@ -98,7 +98,15 @@ class AnthropicDriver implements AiDriverInterface
 
     private function invoiceExtractionPrompt(string $text): string
     {
-        return "Extract invoice data as JSON from:\n\n{$text}\n\nReturn ONLY JSON with fields: invoice_number, invoice_date (YYYY-MM-DD), due_date, party_name, party_gstin, party_address, lines (array of description/hsn_sac/quantity/rate/amount/gst_rate), subtotal, cgst_amount, sgst_amount, igst_amount, total_amount, currency, payment_terms, confidence (0-1).";
+        return "Extract invoice data as JSON from:\n\n{$text}\n\n"
+            . "A GST tax invoice has TWO different parties — keep them separate, never swap: "
+            . "the SELLER/supplier/vendor ISSUED the bill (letterhead, 'For <company>', authorised signatory, payment bank details), "
+            . "while the BUYER/recipient is billed TO (under 'Bill To', 'Buyer', \"Buyer's Details\", 'Party', 'Customer'). "
+            . "A GSTIN next to 'Bill To' is the buyer's, not the seller's.\n"
+            . "Return ONLY JSON with fields: invoice_number, invoice_date (YYYY-MM-DD), due_date, "
+            . "seller_name, seller_gstin, seller_pan, seller_address, seller_email, seller_phone, "
+            . "buyer_name, buyer_gstin, buyer_pan, buyer_address, "
+            . "lines (array of description/hsn_sac/quantity/rate/amount/gst_rate), subtotal, cgst_amount, sgst_amount, igst_amount, total_amount, currency, payment_terms, confidence (0-1).";
     }
 
     private function nlQueryPrompt(string $query): string

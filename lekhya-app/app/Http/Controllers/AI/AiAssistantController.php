@@ -5,7 +5,9 @@ use App\Http\Controllers\Controller;
 use App\Models\AiSuggestion;
 use App\Models\AiUsage;
 use App\Models\Party;
+use App\Models\Tenant;
 use App\Services\AI\AiService;
+use App\Services\AI\VendorResolver;
 use Illuminate\Http\Request;
 
 class AiAssistantController extends Controller
@@ -35,6 +37,12 @@ class AiAssistantController extends Controller
         if (isset($result['error'])) {
             return back()->withErrors(['file' => $result['error']]);
         }
+
+        // A scanned bill is a PURCHASE: the party we record is the SELLER
+        // (supplier), never ourselves. Normalize the seller/buyer blocks the
+        // model returned into the party_* fields every downstream consumer reads,
+        // with a self-guard so the tenant's own company is never taken as vendor.
+        $result = $this->normalizeVendor($result, auth()->user()->tenant);
 
         AiSuggestion::create([
             'tenant_id'     => $tenantId,
@@ -141,6 +149,38 @@ class AiAssistantController extends Controller
     }
 
     /**
+     * Collapse the seller/buyer blocks into the party_* fields that the review
+     * UI, validator, and invoice prefill all read. For a purchase the party is
+     * the SELLER; the self-guard in VendorResolver ensures the tenant's own
+     * company is never chosen (a vendor and buyer can't be the same entity).
+     */
+    private function normalizeVendor(array $ex, ?Tenant $tenant): array
+    {
+        $vendor = VendorResolver::forPurchase($ex, $tenant);
+
+        $ex['party_name']    = $vendor['name'];
+        $ex['party_gstin']   = $vendor['gstin'];
+        $ex['party_pan']     = $vendor['pan'];
+        $ex['party_address'] = $vendor['address'];
+        $ex['party_email']   = $vendor['email'];
+        $ex['party_phone']   = $vendor['phone'];
+
+        // Carry the chosen party's confidence onto the party_* aliases so the
+        // review UI's green/amber logic stays meaningful.
+        $fc = $ex['field_confidence'] ?? [];
+        if (is_array($fc)) {
+            foreach (['name', 'gstin', 'pan', 'address'] as $f) {
+                if (isset($fc["{$vendor['role']}_{$f}"])) {
+                    $fc["party_{$f}"] = $fc["{$vendor['role']}_{$f}"];
+                }
+            }
+            $ex['field_confidence'] = $fc;
+        }
+
+        return $ex;
+    }
+
+    /**
      * Match the extracted party to an existing one (by GSTIN, then name) or
      * create it from the invoice's own details. Idempotent — never duplicates.
      */
@@ -149,6 +189,14 @@ class AiAssistantController extends Controller
         $gstin = strtoupper(trim((string) ($ex['party_gstin'] ?? '')));
         $name  = trim((string) ($ex['party_name'] ?? ''));
         if ($name === '' && $gstin === '') {
+            return null;
+        }
+
+        // Hard stop: never create our own company as a vendor. A vendor and the
+        // buyer (us) can't be the same entity — if extraction still landed on
+        // us, skip rather than pollute the party list with ourselves.
+        $tenant = Tenant::find($tenantId);
+        if ($tenant && VendorResolver::isSelf(['gstin' => $gstin, 'name' => $name], $tenant)) {
             return null;
         }
 
