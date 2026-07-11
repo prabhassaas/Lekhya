@@ -5,7 +5,7 @@
   <div class="w-full max-w-md">
     <div class="text-center mb-8">
       <a href="{{ route('marketing.home') }}" class="inline-flex items-center space-x-2">
-        <div class="w-10 h-10 bg-navy-600 rounded-xl flex items-center justify-center"><span class="text-white font-bold">ल</span></div>
+        <div class="w-10 h-10 bg-navy-600 rounded-xl flex items-center justify-center"><img src="{{ asset('logo-mark.svg') }}" alt="Lekhya" class="w-6 h-6"></div>
         <span class="text-navy-600 font-bold text-2xl">Lekhya</span>
       </a>
     </div>

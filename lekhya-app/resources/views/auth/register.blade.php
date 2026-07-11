@@ -32,7 +32,7 @@
   <div class="text-center mb-8">
     <a href="{{ route('marketing.home') }}" class="inline-flex items-center space-x-2 mb-3">
       <div class="w-10 h-10 bg-navy-600 rounded-xl flex items-center justify-center shadow-md">
-        <span class="text-white font-bold text-lg leading-none">ल</span>
+        <img src="{{ asset('logo-mark.svg') }}" alt="Lekhya" class="w-6 h-6">
       </div>
       <span class="text-navy-600 font-bold text-2xl tracking-tight">Lekhya</span>
     </a>

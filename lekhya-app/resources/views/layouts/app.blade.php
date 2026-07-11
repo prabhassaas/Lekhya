@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Lekhya') — Lekhya AI ERP</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFCMkE0QSIvPgogIDx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9InNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuCksjwvdGV4dD4KPC9zdmc+Cg==">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFCMkE0QSIvPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcgOCkgc2NhbGUoMC43NSkiPgogICAgPHBhdGggZD0iTTMgM3YxNmEyIDIgMCAwIDAgMiAyaDE2IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CiAgICA8cGF0aCBkPSJtMTkgOS01IDUtNC00LTMgMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyLjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDwvZz4KPC9zdmc+Cg==">
     <link rel="alternate icon" href="/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { navy: { 50:'#f0f3f8', 100:'#d9e1ef', 200:'#b3c4df', 300:'#7fa0c9', 400:'#4f7ab0', 500:'#2e5a94', 600:'#1B2A4A', 700:'#162240', 800:'#111a33', 900:'#0c1226' } } } } }</script>
@@ -29,7 +29,7 @@
         <div class="flex items-center h-16 px-4 border-b border-navy-500">
             <a href="{{ route('dashboard') }}" class="flex items-center space-x-2">
                 <div class="w-8 h-8 bg-blue-400 rounded-lg flex items-center justify-center">
-                    <span class="text-white font-bold text-sm">ल</span>
+                    <img src="{{ asset('logo-mark.svg') }}" alt="Lekhya" class="w-5 h-5">
                 </div>
                 <div>
                     <span class="text-white font-bold text-lg">Lekhya</span>
@@ -266,7 +266,7 @@
 <div id="lekhya-splash" style="position:fixed;inset:0;z-index:9999;background:#1B2A4A;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.6s ease">
   <div style="text-align:center">
     <div style="width:72px;height:72px;background:#2e5a94;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
-      <span style="color:#fff;font-size:36px;font-weight:700;font-family:serif">ल</span>
+      <img src="{{ asset('logo-mark.svg') }}" alt="Lekhya" style="width:44px;height:44px">
     </div>
     <p style="color:#fff;font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin:0 0 4px">Lekhya</p>
     <p style="color:#7fa0c9;font-size:0.85rem;margin:0 0 32px">AI-powered GST ERP</p>

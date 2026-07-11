@@ -39,7 +39,7 @@
     <table class="head">
         <tr>
             <td>
-                <div class="brand">ल {{ $d['seller']['name'] }}</div>
+                <div class="brand"><img src="{{ public_path('logo-badge.png') }}" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px"> {{ $d['seller']['name'] }}</div>
                 <div class="muted">
                     {{ $d['seller']['address'] }}<br>
                     @if($d['seller']['gstin'])GSTIN: {{ $d['seller']['gstin'] }}<br>@endif
@@ -97,7 +97,7 @@
 
     <div class="sign">
         <div class="muted">For {{ $d['seller']['name'] }}</div>
-        <div class="n" style="margin-top:20px;">ल {{ $d['seller']['name'] }}</div>
+        <div class="n" style="margin-top:20px;"><img src="{{ public_path('logo-badge.png') }}" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"> {{ $d['seller']['name'] }}</div>
         <div class="muted">Authorised Signatory</div>
     </div>
 

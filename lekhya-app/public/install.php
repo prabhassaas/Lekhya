@@ -220,7 +220,7 @@ a.open-btn{display:block;text-align:center;padding:13px;border-radius:10px;font-
 <body>
 <div class="card">
   <div class="top">
-    <h1>ल&nbsp; Lekhya ERP — Setup</h1>
+    <h1><img src="logo-badge.png" style="width:22px;height:22px;vertical-align:-5px;margin-right:6px">Lekhya ERP — Setup</h1>
     <p>One-click installer · No technical steps needed</p>
   </div>
   <div class="body">

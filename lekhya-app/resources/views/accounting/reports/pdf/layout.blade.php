@@ -38,7 +38,7 @@
                 @if(!empty($tenant->city))<div class="muted">{{ $tenant->city }}{{ $tenant->state ? ', ' . $tenant->state : '' }}</div>@endif
             </td>
             <td style="text-align: right;">
-                <div class="brand">ल Lekhya<span> AI ERP</span></div>
+                <div class="brand"><img src="{{ public_path('logo-badge.png') }}" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px"> Lekhya<span> AI ERP</span></div>
                 <div class="muted">Generated {{ ($generatedAt ?? now())->format('d M Y, H:i') }}</div>
             </td>
         </tr>

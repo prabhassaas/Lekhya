@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Lekhya') — AI-powered GST ERP for India</title>
     <meta name="description" content="@yield('meta-desc', 'Lekhya is India\'s seedha-saadha AI accounting ERP. GST-compliant, double-entry, cloud-based. Free 14-day trial.')">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFCMkE0QSIvPgogIDx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9InNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuCksjwvdGV4dD4KPC9zdmc+Cg==">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFCMkE0QSIvPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcgOCkgc2NhbGUoMC43NSkiPgogICAgPHBhdGggZD0iTTMgM3YxNmEyIDIgMCAwIDAgMiAyaDE2IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CiAgICA8cGF0aCBkPSJtMTkgOS01IDUtNC00LTMgMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyLjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDwvZz4KPC9zdmc+Cg==">
     <link rel="alternate icon" href="/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { navy: { 50:'#f0f3f8', 600:'#1B2A4A', 700:'#162240', 900:'#0c1226' } } } } }</script>
@@ -25,7 +25,7 @@
                 </a>
                 <a href="{{ route('marketing.home') }}" class="flex items-center space-x-2">
                     <div class="w-8 h-8 bg-navy-600 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-sm">ल</span>
+                        <img src="{{ asset('logo-mark.svg') }}" alt="Lekhya" class="w-5 h-5">
                     </div>
                     <span class="text-navy-600 font-bold text-xl">Lekhya</span>
                 </a>
@@ -50,7 +50,7 @@
                     <button @click="appMenu=!appMenu" @click.away="appMenu=false"
                             class="flex items-center space-x-1.5 text-navy-600 text-sm font-medium px-3 py-2 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition">
                         <div class="w-5 h-5 bg-navy-600 rounded flex items-center justify-center flex-shrink-0">
-                            <span class="text-white font-bold text-xs">ल</span>
+                            <img src="{{ asset('logo-mark.svg') }}" alt="Lekhya" class="w-3 h-3">
                         </div>
                         <span>Lekhya</span>
                         <i class="fa fa-chevron-down text-xs text-gray-400 transition-transform duration-150" :class="appMenu ? 'rotate-180' : ''"></i>
@@ -175,7 +175,7 @@
             <div class="col-span-2 md:col-span-1">
                 <div class="flex items-center space-x-2 mb-4">
                     <div class="w-8 h-8 bg-navy-600 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-sm" style="font-family:serif">ल</span>
+                        <img src="{{ asset('logo-mark.svg') }}" alt="Lekhya" class="w-5 h-5">
                     </div>
                     <span class="text-white font-bold text-xl">Lekhya</span>
                 </div>

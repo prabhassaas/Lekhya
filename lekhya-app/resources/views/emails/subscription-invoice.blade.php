@@ -7,7 +7,7 @@
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
         <!-- Header -->
         <tr><td style="background:#1B2A4A;padding:22px 28px;">
-            <span style="color:#ffffff;font-size:20px;font-weight:bold;">ल {{ config('prabhas.name') }}</span>
+            <img src="{{ config('app.url') }}/logo-badge.png" width="20" height="20" style="vertical-align:-4px;margin-right:6px" alt=""><span style="color:#ffffff;font-size:20px;font-weight:bold;">{{ config('prabhas.name') }}</span>
         </td></tr>
 
         <!-- Body -->
@@ -49,7 +49,7 @@
             <!-- Signature -->
             <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e5e7eb;">
                 <p style="margin:0;font-size:14px;color:#374151;">Warm regards,</p>
-                <p style="margin:6px 0 0;font-size:15px;font-weight:bold;color:#1B2A4A;">ल {{ config('prabhas.name') }}</p>
+                <p style="margin:6px 0 0;font-size:15px;font-weight:bold;color:#1B2A4A;"><img src="{{ config('app.url') }}/logo-badge.png" width="16" height="16" style="vertical-align:-3px;margin-right:4px" alt="">{{ config('prabhas.name') }}</p>
                 <p style="margin:2px 0 0;font-size:12px;color:#6b7280;">{{ config('prabhas.website') }} &middot; {{ config('prabhas.email') }}</p>
             </div>
         </td></tr>
