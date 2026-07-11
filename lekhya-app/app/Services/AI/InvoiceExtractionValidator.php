@@ -72,10 +72,17 @@ class InvoiceExtractionValidator
         $tax      = $cgst + $sgst + $igst;
         $gstin    = $ex['party_gstin'] ?? null;
 
+        // Taxable value = sum of line (qty × rate − discount) when lines are
+        // present; the top-level subtotal is often the gross (pre-discount).
+        $lineTaxable = collect($ex['lines'] ?? [])->sum(fn($l) =>
+            ((float) ($l['quantity'] ?? 0)) * ((float) ($l['rate'] ?? 0)) * (1 - ((float) ($l['discount_percent'] ?? 0)) / 100)
+        );
+        $taxable = $lineTaxable > 0 ? round($lineTaxable, 2) : $subtotal;
+
         $checks = [];
 
         // 1. taxable + tax = total
-        $expected = $subtotal + $tax;
+        $expected = $taxable + $tax;
         $checks[] = [
             'key'     => 'totals',
             'label'   => 'Taxable + GST = Total',
