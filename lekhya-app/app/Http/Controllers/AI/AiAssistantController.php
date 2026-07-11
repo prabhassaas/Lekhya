@@ -3,6 +3,7 @@ namespace App\Http\Controllers\AI;
 
 use App\Http\Controllers\Controller;
 use App\Models\AiSuggestion;
+use App\Models\AiUsage;
 use App\Models\Party;
 use App\Services\AI\AiService;
 use Illuminate\Http\Request;
@@ -45,6 +46,8 @@ class AiAssistantController extends Controller
             'model_metadata'=> ['driver' => $this->ai->getDriverName(), 'is_mock' => $result['_mock'] ?? false],
         ]);
 
+        $this->meter($tenantId, 'extraction');
+
         // Land on the review page regardless of where the upload came from
         // (AI page, invoices page, or a phone camera capture).
         return redirect()->route('ai.index')->with('success', "Invoice read from \"{$file->getClientOriginalName()}\". Review and approve the suggestion below.");
@@ -66,6 +69,8 @@ class AiAssistantController extends Controller
             'model_used'    => config('services.ai.model'),
             'model_metadata'=> ['driver' => $this->ai->getDriverName()],
         ]);
+
+        $this->meter($tenantId, 'nl_query');
 
         return response()->json([
             'success'       => true,
@@ -95,7 +100,22 @@ class AiAssistantController extends Controller
             'model_metadata'=> ['driver' => $this->ai->getDriverName()],
         ]);
 
+        $this->meter($tenantId, 'account_coding');
+
         return response()->json(['success' => true, 'result' => $result]);
+    }
+
+    /** Record one AI call for per-tenant metering (credits + admin console). */
+    private function meter(int $tenantId, string $type): void
+    {
+        $driver = $this->ai->getDriverName();
+        AiUsage::create([
+            'tenant_id' => $tenantId,
+            'user_id'   => auth()->id(),
+            'type'      => $type,
+            'driver'    => $driver,
+            'billable'  => $driver !== 'mock', // mock/offline calls don't count against credits
+        ]);
     }
 
     public function approve(AiSuggestion $suggestion)

@@ -35,25 +35,29 @@ class AiService
             }
         }
 
-        // 2. Fall back to the global env-configured driver.
-        $configured = config('services.ai.driver', 'ollama');
-        $driver = $this->build($configured);
-
-        if ($driver && $driver->isAvailable()) {
-            return $driver;
-        }
-
-        // 3. Last resort: try Groq/Anthropic env keys, else mock.
-        Log::info("AI driver [{$configured}] unavailable, trying fallback chain");
-        foreach (['groq', 'anthropic'] as $fallback) {
-            if ($fallback !== $configured) {
-                $d = $this->build($fallback);
+        // 2. Central Prabhas SaaS key (env/secret) — auto-enabled for any
+        //    tenant on an active subscription or trial. No per-user keys.
+        if ($this->aiEntitled()) {
+            $configured = config('services.ai.driver', 'groq');
+            foreach ([$configured, 'groq', 'anthropic', 'ollama'] as $provider) {
+                $d = $this->build($provider);
                 if ($d && $d->isAvailable()) {
                     return $d;
                 }
             }
         }
+
+        // 3. Not entitled, or no key configured yet → offline mock.
         return new MockDriver();
+    }
+
+    /** AI runs on the central key only for subscribed/trial tenants (CLI/queue exempt). */
+    private function aiEntitled(): bool
+    {
+        if (! auth()->check()) {
+            return true; // CLI / queue jobs
+        }
+        return (bool) auth()->user()->tenant?->aiEnabled();
     }
 
     private function build(string $provider, array $config = []): ?AiDriverInterface

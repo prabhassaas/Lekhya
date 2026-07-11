@@ -77,4 +77,13 @@ class Tenant extends Model
     {
         return $this->hasEntitlement('lekhya', 'pramaan');
     }
+
+    /** AI is auto-enabled for any tenant on an active subscription or trial. */
+    public function aiEnabled(): bool
+    {
+        return $this->entitlements()
+            ->where('app', 'lekhya')
+            ->where('is_active', true)
+            ->exists();
+    }
 }

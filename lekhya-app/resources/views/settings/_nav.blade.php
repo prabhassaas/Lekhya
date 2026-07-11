@@ -4,7 +4,6 @@
         ['settings.fiscal_years', 'Fiscal Years', 'fa-calendar'],
         ['settings.users', 'Users & Roles', 'fa-users'],
         ['settings.billing', 'Billing', 'fa-credit-card'],
-        ['settings.ai', 'AI / OCR', 'fa-wand-magic-sparkles'],
     ];
 @endphp
 <div class="border-b border-gray-200 mb-6">
