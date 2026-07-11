@@ -13,11 +13,11 @@
     <div class="bg-navy-600 rounded-2xl p-6 text-white mb-12">
         <h3 class="font-semibold text-lg mb-4">How it works in one line</h3>
         <div class="flex items-center gap-3 flex-wrap">
-            @foreach(['Customer raises invoice in SeedhaBill', '→', 'Lekhya picks it up automatically', '→', 'You review and approve', '→', 'Accounting entries are posted'])
-            @if($loop->even)
+            @foreach(['Customer raises invoice in SeedhaBill', '→', 'Lekhya picks it up automatically', '→', 'You review and approve', '→', 'Accounting entries are posted'] as $step)
+            @if($step === '→')
             <i class="fa fa-arrow-right text-blue-300 text-lg"></i>
             @else
-            <div class="bg-white bg-opacity-10 rounded-lg px-3 py-2 text-sm">{{ $loop->parent->loop->current }}</div>
+            <div class="bg-white bg-opacity-10 rounded-lg px-3 py-2 text-sm">{{ $step }}</div>
             @endif
             @endforeach
         </div>

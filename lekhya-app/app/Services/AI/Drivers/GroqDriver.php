@@ -21,9 +21,11 @@ class GroqDriver implements AiDriverInterface
 
     public function __construct(array $config = [])
     {
-        $this->apiKey      = $config['api_key']      ?? (string) config('services.ai.groq_key', '');
-        $this->textModel   = $config['text_model']   ?: config('services.ai.groq_text_model', 'llama-3.3-70b-versatile');
-        $this->visionModel = $config['vision_model'] ?: config('services.ai.groq_vision_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
+        // Use ?? on every key — this ctor is also called with an empty config
+        // in the env-fallback path, so the keys may be absent (not just null).
+        $this->apiKey      = ($config['api_key']      ?? null) ?: (string) config('services.ai.groq_key', '');
+        $this->textModel   = ($config['text_model']   ?? null) ?: config('services.ai.groq_text_model', 'llama-3.3-70b-versatile');
+        $this->visionModel = ($config['vision_model'] ?? null) ?: config('services.ai.groq_vision_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
         $this->maxTokens   = (int) config('services.ai.max_tokens', 2048);
     }
 

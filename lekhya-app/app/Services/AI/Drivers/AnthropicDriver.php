@@ -13,7 +13,9 @@ class AnthropicDriver implements AiDriverInterface
 
     public function __construct()
     {
-        $this->apiKey    = config('services.ai.anthropic_key', '');
+        // config value is env('ANTHROPIC_API_KEY') which is null when unset —
+        // cast so the typed string property never receives null.
+        $this->apiKey    = (string) config('services.ai.anthropic_key', '');
         $this->model     = 'claude-haiku-4-5-20251001'; // fast + cheap for ERP tasks
         $this->maxTokens = (int) config('services.ai.max_tokens', 2048);
     }

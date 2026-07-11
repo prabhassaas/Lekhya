@@ -42,7 +42,7 @@
   {{-- Tab bar --}}
   <div class="border-b border-gray-200">
     <nav class="flex space-x-1 -mb-px">
-      @foreach([['extract','Invoice Extraction','fa-file-invoice'], ['query','Ask a Question','fa-comments'], ['code','Auto Account Coding','fa-tag'], ['pending','Pending Review ('.($pending->total().')','fa-clock'], ['history','History','fa-history']] as [$tab,$label,$icon])
+      @foreach([['extract','Invoice Extraction','fa-file-invoice'], ['query','Ask a Question','fa-comments'], ['code','Auto Account Coding','fa-tag'], ['pending','Pending Review ('.$pending->total().')','fa-clock'], ['history','History','fa-history']] as [$tab,$label,$icon])
       <button @click="activeTab = '{{ $tab }}'"
         :class="activeTab === '{{ $tab }}' ? 'border-navy-600 text-navy-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
         class="flex items-center space-x-2 px-4 py-3 border-b-2 text-sm font-medium whitespace-nowrap transition-colors">
