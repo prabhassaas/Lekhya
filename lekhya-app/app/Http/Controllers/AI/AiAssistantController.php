@@ -3,6 +3,7 @@ namespace App\Http\Controllers\AI;
 
 use App\Http\Controllers\Controller;
 use App\Models\AiSuggestion;
+use App\Models\Party;
 use App\Services\AI\AiService;
 use Illuminate\Http\Request;
 
@@ -108,11 +109,58 @@ class AiAssistantController extends Controller
         ]);
 
         if ($suggestion->type === 'extraction') {
-            return redirect()->route('accounting.invoices.create', ['ai_suggestion' => $suggestion->id])
-                ->with('success', 'AI extraction approved. Pre-filled the invoice form — please verify and post.');
+            // A scanned bill is a purchase — make sure the vendor exists in the
+            // party list (matched or freshly created) so no detail is lost.
+            $this->resolveOrCreateParty($suggestion->suggestion ?? [], $suggestion->tenant_id, 'vendor');
+
+            return redirect()->route('accounting.invoices.create', ['type' => 'purchase', 'ai_suggestion' => $suggestion->id])
+                ->with('success', 'Approved — vendor and full invoice details pre-filled. Verify and post.');
         }
 
         return back()->with('success', 'Suggestion approved.');
+    }
+
+    /**
+     * Match the extracted party to an existing one (by GSTIN, then name) or
+     * create it from the invoice's own details. Idempotent — never duplicates.
+     */
+    private function resolveOrCreateParty(array $ex, int $tenantId, string $type): ?Party
+    {
+        $gstin = strtoupper(trim((string) ($ex['party_gstin'] ?? '')));
+        $name  = trim((string) ($ex['party_name'] ?? ''));
+        if ($name === '' && $gstin === '') {
+            return null;
+        }
+
+        $base = Party::where('tenant_id', $tenantId);
+        $match = null;
+        if ($gstin !== '') {
+            $match = (clone $base)->whereRaw('UPPER(gstin) = ?', [$gstin])->first();
+        }
+        if (! $match && $name !== '') {
+            $match = (clone $base)->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+        }
+        if ($match) {
+            return $match;
+        }
+
+        // GSTIN encodes the state (first 2 digits) and PAN (chars 3–12).
+        $stateCode = strlen($gstin) >= 2 ? substr($gstin, 0, 2) : null;
+        $pan       = ! empty($ex['party_pan']) ? strtoupper(trim($ex['party_pan']))
+                     : (strlen($gstin) >= 12 ? substr($gstin, 2, 10) : null);
+
+        return Party::create([
+            'tenant_id'  => $tenantId,
+            'type'       => $type,
+            'name'       => $name !== '' ? $name : 'Unnamed Vendor',
+            'gstin'      => $gstin !== '' ? $gstin : null,
+            'pan'        => $pan,
+            'email'      => $ex['party_email'] ?? null,
+            'phone'      => $ex['party_phone'] ?? null,
+            'address'    => $ex['party_address'] ?? null,
+            'state_code' => $stateCode,
+            'is_active'  => true,
+        ]);
     }
 
     public function reject(AiSuggestion $suggestion)

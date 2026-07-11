@@ -64,21 +64,26 @@ class InvoiceController extends Controller {
             'description'      => $l['description'] ?? '',
             'hsn_sac_code'     => (string) ($l['hsn_sac'] ?? $l['hsn_sac_code'] ?? ''),
             'quantity'         => $l['quantity'] ?? 1,
+            'unit'             => $l['unit'] ?? 'nos',
             'rate'             => $l['rate'] ?? ($l['amount'] ?? ''),
-            'discount_percent' => 0,
+            'discount_percent' => $l['discount_percent'] ?? 0,
             'gst_rate'         => $l['gst_rate'] ?? null, // preview fallback when HSN isn't in the rate table
         ])->values()->all();
 
         $validation = app(InvoiceExtractionValidator::class)->validate($ex);
 
         return [
-            'suggestion_id' => $suggestion->id,
-            'party_id'      => $match?->id,
-            'party_name'    => $name,
-            'party_matched' => (bool) $match,
-            'invoice_date'  => $ex['invoice_date'] ?? null,
-            'lines'         => $lines ?: null,
-            'validation'    => $validation,
+            'suggestion_id'    => $suggestion->id,
+            'party_id'         => $match?->id,
+            'party_name'       => $name,
+            'party_gstin'      => $gstin ?: null,
+            'party_matched'    => (bool) $match,
+            'reference_number' => $ex['invoice_number'] ?? null, // the vendor's own bill number
+            'invoice_date'     => $ex['invoice_date'] ?? null,
+            'due_date'         => $ex['due_date'] ?? null,
+            'notes'            => $ex['payment_terms'] ?? null,
+            'lines'            => $lines ?: null,
+            'validation'       => $validation,
         ];
     }
 
@@ -87,13 +92,18 @@ class InvoiceController extends Controller {
         $validated = $request->validate([
             'type' => 'required|in:sales,purchase',
             'party_id' => 'required|exists:parties,id',
+            'reference_number' => 'nullable|string|max:100',
             'invoice_date' => 'required|date',
+            'due_date' => 'nullable|date',
+            'notes' => 'nullable|string|max:2000',
             'lines' => 'required|array|min:1',
             'lines.*.description' => 'required|string',
             'lines.*.hsn_sac_code' => 'nullable|string',
             'lines.*.quantity' => 'required|numeric|min:0.001',
+            'lines.*.unit' => 'nullable|string|max:20',
             'lines.*.rate' => 'required|numeric|min:0',
             'lines.*.discount_percent' => 'nullable|numeric|min:0|max:100',
+            'lines.*.gst_rate' => 'nullable|numeric|min:0|max:100',
         ]);
         $tenant = auth()->user()->tenant;
         $party = Party::findOrFail($validated['party_id']);
@@ -109,8 +119,27 @@ class InvoiceController extends Controller {
         foreach ($lines as $line) {
             $gross = $line['quantity'] * $line['rate'];
             $taxable = round($gross * (1 - ($line['discount_percent'] ?? 0) / 100), 4);
-            $rates = $this->rateEngine->getRates($line['hsn_sac_code'] ?? '', $supplierState, $buyerState);
-            $tax = $this->rateEngine->calculateTax($taxable, $rates);
+
+            // Honour the bill's own GST rate when it was captured (e.g. a scanned
+            // vendor bill), so the recorded tax matches the bill exactly. Fall
+            // back to the HSN rate engine for manually-entered lines.
+            $billRate = isset($line['gst_rate']) && is_numeric($line['gst_rate']) ? (float) $line['gst_rate'] : 0.0;
+            if ($billRate > 0) {
+                $rates = [
+                    'cgst_rate' => $isInterstate ? 0 : $billRate / 2,
+                    'sgst_rate' => $isInterstate ? 0 : $billRate / 2,
+                    'igst_rate' => $isInterstate ? $billRate : 0,
+                ];
+                $tax = [
+                    'cgst_amount' => round($taxable * $rates['cgst_rate'] / 100, 2),
+                    'sgst_amount' => round($taxable * $rates['sgst_rate'] / 100, 2),
+                    'igst_amount' => round($taxable * $rates['igst_rate'] / 100, 2),
+                ];
+                $tax['total_tax'] = $tax['cgst_amount'] + $tax['sgst_amount'] + $tax['igst_amount'];
+            } else {
+                $rates = $this->rateEngine->getRates($line['hsn_sac_code'] ?? '', $supplierState, $buyerState);
+                $tax = $this->rateEngine->calculateTax($taxable, $rates);
+            }
 
             $subtotal += $gross;
             $taxableTotal += $taxable;
@@ -201,7 +230,14 @@ class InvoiceController extends Controller {
     private function nextNumber(int $tenantId, string $type): string {
         $prefix = $type === 'sales' ? 'SI' : 'PI';
         $year = date('y');
-        $count = Invoice::where('tenant_id', $tenantId)->where('type', $type)->whereYear('invoice_date', date('Y'))->count();
-        return "{$prefix}/{$year}/" . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
+        // Include soft-deleted rows and derive from the highest existing sequence —
+        // count() alone reuses numbers after a delete and hits the unique constraint.
+        $last = Invoice::withTrashed()
+            ->where('tenant_id', $tenantId)->where('type', $type)
+            ->where('invoice_number', 'like', "{$prefix}/{$year}/%")
+            ->pluck('invoice_number')
+            ->map(fn($n) => (int) substr((string) $n, strrpos((string) $n, '/') + 1))
+            ->max() ?? 0;
+        return "{$prefix}/{$year}/" . str_pad($last + 1, 4, '0', STR_PAD_LEFT);
     }
 }

@@ -81,8 +81,16 @@
                     </select>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ ($type ?? 'sales') === 'purchase' ? 'Vendor Bill / Invoice No.' : 'Reference No.' }}</label>
+                    <input type="text" name="reference_number" value="{{ old('reference_number', $prefill['reference_number'] ?? '') }}" placeholder="{{ ($type ?? 'sales') === 'purchase' ? "Supplier's invoice number" : 'PO / reference' }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Invoice Date <span class="text-red-500">*</span></label>
                     <input type="date" name="invoice_date" required value="{{ old('invoice_date', $prefill['invoice_date'] ?? date('Y-m-d')) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                    <input type="date" name="due_date" value="{{ old('due_date', $prefill['due_date'] ?? '') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 </div>
             </div>
 
@@ -111,6 +119,9 @@
                                 <td class="px-3 py-2">
                                     <input type="text" :name="'lines[' + i + '][description]'" x-model="line.description" required
                                            class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+                                    {{-- carry unit + the bill's own GST rate captured from the scan --}}
+                                    <input type="hidden" :name="'lines[' + i + '][unit]'" :value="line.unit || 'nos'">
+                                    <input type="hidden" :name="'lines[' + i + '][gst_rate]'" :value="line.gst_rate ?? ''">
                                 </td>
                                 <td class="px-3 py-2">
                                     <select :name="'lines[' + i + '][hsn_sac_code]'" x-model="line.hsn_sac_code" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
@@ -148,6 +159,11 @@
             <button type="button" @click="addLine()" class="text-sm text-blue-600 hover:text-blue-700 mb-6">
                 <i class="fa fa-plus mr-1"></i>Add line
             </button>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes / Payment Terms</label>
+                <textarea name="notes" rows="2" placeholder="Payment terms, remarks…" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{{ old('notes', $prefill['notes'] ?? '') }}</textarea>
+            </div>
 
             <div class="flex justify-end">
                 <div class="w-64 space-y-1.5 text-sm">

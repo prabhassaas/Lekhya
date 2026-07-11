@@ -109,12 +109,14 @@ class GroqDriver implements AiDriverInterface
 
     private function invoiceExtractionPrompt(string $text): string
     {
-        return "You are an expert Indian GST invoice reader. Extract data as JSON from the invoice below.\n\n{$text}\n\n"
+        return "You are an expert Indian GST invoice reader. Extract EVERY detail as JSON from the invoice below — miss nothing.\n\n{$text}\n\n"
             . "Return ONLY JSON with fields: invoice_number, invoice_date (YYYY-MM-DD), due_date (YYYY-MM-DD or null), "
-            . "party_name, party_gstin, party_address, lines (array of {description, hsn_sac, quantity, rate, amount, gst_rate}), "
-            . "subtotal, cgst_amount, sgst_amount, igst_amount, total_amount, currency, payment_terms, "
+            . "party_name, party_gstin, party_pan, party_address, party_email, party_phone, "
+            . "lines (array of {description, hsn_sac, quantity, unit, rate, discount_percent, amount, gst_rate}), "
+            . "subtotal, cgst_amount, sgst_amount, igst_amount, cess_amount, round_off, total_amount, currency, "
+            . "place_of_supply, reverse_charge (true/false), payment_terms, notes, "
             . "confidence (0-1 overall), field_confidence (object mapping each top-level field name to 0-1). "
-            . "Use 0 for any field you cannot read. Never invent values.";
+            . "Use null for any field you cannot read. Never invent values.";
     }
 
     private function nlQueryPrompt(string $query): string
