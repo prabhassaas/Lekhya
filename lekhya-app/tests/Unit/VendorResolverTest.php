@@ -86,4 +86,40 @@ class VendorResolverTest extends TestCase
         $this->assertTrue(VendorResolver::isSelf(['name' => 'THE YARN STORY'], $t));
         $this->assertFalse(VendorResolver::isSelf(['gstin' => '27KDWPS9761R1ZM', 'name' => 'MACROTECH SOFTWARES'], $t));
     }
+
+    public function test_resolve_detects_sales_when_we_are_the_seller(): void
+    {
+        // Our own sales invoice: we issued it → SALES, counterparty is the customer.
+        $r = VendorResolver::resolve([
+            'seller_name' => 'The Yarn Story',         'seller_gstin' => '27CNPPS8883M1ZL',
+            'buyer_name'  => 'Sun TV Network Limited', 'buyer_gstin'  => '27AAECS8585K1ZX',
+        ], $this->tenant());
+
+        $this->assertSame('sales', $r['direction']);
+        $this->assertSame('customer', $r['party_type']);
+        $this->assertSame('Sun TV Network Limited', $r['name']);
+    }
+
+    public function test_resolve_detects_purchase_when_we_are_the_buyer(): void
+    {
+        $r = VendorResolver::resolve([
+            'seller_name' => 'MACROTECH SOFTWARES', 'seller_gstin' => '27KDWPS9761R1ZM',
+            'buyer_name'  => 'The Yarn Story',      'buyer_gstin'  => '27CNPPS8883M1ZL',
+        ], $this->tenant());
+
+        $this->assertSame('purchase', $r['direction']);
+        $this->assertSame('vendor', $r['party_type']);
+        $this->assertSame('MACROTECH SOFTWARES', $r['name']);
+    }
+
+    public function test_resolve_defaults_to_purchase_when_neither_side_is_us(): void
+    {
+        $r = VendorResolver::resolve([
+            'seller_name' => 'MACROTECH SOFTWARES', 'seller_gstin' => '27KDWPS9761R1ZM',
+            'buyer_name'  => 'Some Other Co',       'buyer_gstin'  => '29AAAAA0000A1Z5',
+        ], $this->tenant());
+
+        $this->assertSame('purchase', $r['direction']);
+        $this->assertSame('MACROTECH SOFTWARES', $r['name']);
+    }
 }

@@ -138,32 +138,36 @@ class AiAssistantController extends Controller
         ]);
 
         if ($suggestion->type === 'extraction') {
-            $tenantId = $suggestion->tenant_id;
+            $tenantId    = $suggestion->tenant_id;
+            $invoiceType = 'purchase';
 
-            // Never let vendor auto-creation crash the approval. Bad OCR data
-            // (over-long/garbled fields) must degrade to a manual vendor pick,
-            // not a 500 — the bill still opens pre-filled.
+            // Never let party auto-creation crash the approval. Bad OCR data
+            // (over-long/garbled fields) must degrade to a manual pick, not a 500.
             try {
-                $vendor = VendorResolver::forPurchase($suggestion->suggestion ?? [], Tenant::find($tenantId));
-                $gstin  = strtoupper(trim((string) ($vendor['gstin'] ?? '')));
+                // Direction: if WE are the seller it's our sales invoice (party =
+                // customer); if we're billed it's a purchase (party = vendor).
+                $party       = VendorResolver::resolve($suggestion->suggestion ?? [], Tenant::find($tenantId));
+                $invoiceType = ($party['direction'] ?? 'purchase') === 'sales' ? 'sales' : 'purchase';
+                $partyType   = $party['party_type'] ?? 'vendor';
+                $gstin       = strtoupper(trim((string) ($party['gstin'] ?? '')));
 
-                // If a vendor with the same name/PAN but a DIFFERENT GSTIN already
-                // exists, don't silently merge or duplicate — ask the user whether
-                // this is a separate vendor or another branch of the same contact.
-                $exact = $gstin !== '' ? Party::where('tenant_id', $tenantId)->whereRaw('UPPER(gstin) = ?', [$gstin])->first() : null;
-                if (! $exact && $gstin !== '' && ($dupe = $this->findDuplicateParty($vendor, $tenantId))) {
-                    return redirect()->route('ai.resolve', ['suggestion' => $suggestion->id, 'existing' => $dupe->id]);
+                // On a purchase, a same-name/PAN party with a DIFFERENT GSTIN means
+                // "separate vendor or branch?" — ask before merging/duplicating.
+                if ($invoiceType === 'purchase' && $gstin !== '') {
+                    $exact = Party::where('tenant_id', $tenantId)->whereRaw('UPPER(gstin) = ?', [$gstin])->first();
+                    if (! $exact && ($dupe = $this->findDuplicateParty($party, $tenantId))) {
+                        return redirect()->route('ai.resolve', ['suggestion' => $suggestion->id, 'existing' => $dupe->id]);
+                    }
                 }
 
-                // A scanned bill is a purchase — make sure the vendor exists in the
-                // party list (matched or freshly created) so no detail is lost.
-                $this->resolveOrCreateParty($suggestion->suggestion ?? [], $tenantId, 'vendor');
+                // Make sure the counterparty exists in the party list so no detail is lost.
+                $this->resolveOrCreateParty($suggestion->suggestion ?? [], $tenantId, $partyType);
             } catch (\Throwable $e) {
-                Log::warning('AI approve: vendor auto-create failed', ['suggestion' => $suggestion->id, 'error' => $e->getMessage()]);
+                Log::warning('AI approve: party auto-create failed', ['suggestion' => $suggestion->id, 'error' => $e->getMessage()]);
             }
 
-            return redirect()->route('accounting.invoices.create', ['type' => 'purchase', 'ai_suggestion' => $suggestion->id])
-                ->with('success', 'Approved — vendor and full invoice details pre-filled. Verify and post.');
+            return redirect()->route('accounting.invoices.create', ['type' => $invoiceType, 'ai_suggestion' => $suggestion->id])
+                ->with('success', 'Approved — details pre-filled. Verify and post.');
         }
 
         return back()->with('success', 'Suggestion approved.');

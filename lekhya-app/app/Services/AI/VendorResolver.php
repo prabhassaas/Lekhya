@@ -18,11 +18,14 @@ use App\Models\Tenant;
 class VendorResolver
 {
     /**
-     * Normalized vendor block for a purchase.
+     * Work out the invoice DIRECTION and the counterparty to record.
+     *  - If the SELLER is us  → we issued it → SALES; counterparty = the customer (buyer).
+     *  - If the BUYER  is us  → billed to us → PURCHASE; counterparty = the vendor (seller).
+     *  - Otherwise (a scanned vendor bill) → PURCHASE; counterparty = the seller.
      *
-     * @return array{name:?string, gstin:?string, pan:?string, address:?string, email:?string, phone:?string, role:string}
+     * @return array{name:?string, gstin:?string, pan:?string, address:?string, email:?string, phone:?string, role:string, direction:string, party_type:string}
      */
-    public static function forPurchase(array $ex, ?Tenant $tenant = null): array
+    public static function resolve(array $ex, ?Tenant $tenant = null): array
     {
         $seller = self::block($ex, 'seller');
         $buyer  = self::block($ex, 'buyer');
@@ -32,26 +35,34 @@ class VendorResolver
             $seller = self::block($ex, 'party');
         }
 
-        // The vendor is the seller (the party that issued the bill).
-        $pickedSeller = ! self::isEmpty($seller);
-        $vendor = $pickedSeller ? $seller : $buyer;
-        $role   = $pickedSeller ? 'seller' : 'buyer';
+        $sellerSelf = $tenant && ! self::isEmpty($seller) && self::isSelf($seller, $tenant);
+        $buyerSelf  = $tenant && ! self::isEmpty($buyer)  && self::isSelf($buyer, $tenant);
 
-        // Self-guard: the vendor is NEVER the tenant's own company. If the
-        // chosen block is us, use the other one instead — this corrects the
-        // common OCR mistake of reading the buyer ("Bill To") block as the party.
-        if ($tenant && self::isSelf($vendor, $tenant)) {
-            $alt     = $pickedSeller ? $buyer : $seller;
-            $altRole = $pickedSeller ? 'buyer' : 'seller';
-            if (! self::isEmpty($alt) && ! self::isSelf($alt, $tenant)) {
-                $vendor = $alt;
-                $role   = $altRole;
-            }
+        if ($sellerSelf && ! $buyerSelf) {
+            // Our GSTIN/name is the seller → this is our own sales invoice.
+            $party = $buyer;  $role = 'buyer';  $direction = 'sales';
+        } elseif ($buyerSelf && ! $sellerSelf) {
+            // We are billed → a purchase; the vendor is the seller.
+            $party = $seller; $role = 'seller'; $direction = 'purchase';
+        } else {
+            // Default: a scanned vendor bill. Prefer the seller; fall back to buyer.
+            $useSeller = ! self::isEmpty($seller);
+            $party = $useSeller ? $seller : $buyer;
+            $role  = $useSeller ? 'seller' : 'buyer';
+            $direction = 'purchase';
         }
 
-        $vendor['role'] = $role;
+        $party['role']       = $role;
+        $party['direction']  = $direction;
+        $party['party_type'] = $direction === 'sales' ? 'customer' : 'vendor';
 
-        return $vendor;
+        return $party;
+    }
+
+    /** Backward-compatible alias — returns the counterparty block (with direction keys). */
+    public static function forPurchase(array $ex, ?Tenant $tenant = null): array
+    {
+        return self::resolve($ex, $tenant);
     }
 
     /** True when this party block is the tenant itself — by GSTIN, PAN, or exact name. */

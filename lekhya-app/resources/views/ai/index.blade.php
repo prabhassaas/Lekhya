@@ -438,7 +438,8 @@
 <script>
 function aiAssistant() {
   return {
-    activeTab: '{{ $pending->total() > 0 ? "pending" : "extract" }}',
+    // Keep the right tab open after a paginate reload (history/pending page links).
+    activeTab: @js(request('history_page') ? 'history' : (request('pending_page') || $pending->total() > 0 ? 'pending' : 'extract')),
     nlQuery: '',
     nlLoading: false,
     nlResult: null,
