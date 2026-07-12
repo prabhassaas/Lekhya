@@ -116,7 +116,37 @@ class AiService
             return ['error' => 'Could not extract text from file. Ensure it is a readable PDF or image.'];
         }
 
-        return $this->driver->extractInvoice($text, $imageBase64);
+        // Scrub before the call: raw-byte PDF text can carry invalid UTF-8, which
+        // makes Guzzle's json_encode of the request body throw "Malformed UTF-8".
+        $text = $this->sanitizeUtf8($text);
+
+        // Scrub the response too, so Eloquent's JSON cast can persist it safely.
+        return $this->scrubUtf8($this->driver->extractInvoice($text, $imageBase64));
+    }
+
+    /**
+     * Force a string to valid UTF-8. Both the AI HTTP call (Guzzle) and the
+     * Eloquent JSON cast of the stored suggestion run json_encode, which rejects
+     * malformed byte sequences with "Malformed UTF-8 characters". Drop them.
+     */
+    private function sanitizeUtf8(string $s): string
+    {
+        if ($s === '' || preg_match('//u', $s) === 1) {
+            return $s; // already valid UTF-8 — fast path
+        }
+        $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $s);
+        return $clean !== false ? $clean : mb_convert_encoding($s, 'UTF-8', 'UTF-8');
+    }
+
+    /** Recursively scrub every string in an extraction array to valid UTF-8. */
+    private function scrubUtf8(array $data): array
+    {
+        array_walk_recursive($data, function (&$v) {
+            if (is_string($v)) {
+                $v = $this->sanitizeUtf8($v);
+            }
+        });
+        return $data;
     }
 
     /**

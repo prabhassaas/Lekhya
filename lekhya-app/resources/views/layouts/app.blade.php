@@ -63,6 +63,12 @@
             <a href="{{ route('accounting.invoices.index') }}?type=purchase" class="nav-link">
                 <i class="fa fa-cart-shopping w-5"></i> <span>Purchase Invoices</span>
             </a>
+            <a href="{{ route('accounting.parties.index') }}" class="nav-link @active('accounting.parties*')">
+                <i class="fa fa-address-book w-5"></i> <span>Vendors &amp; Customers</span>
+            </a>
+            <a href="{{ route('accounting.payments.pending') }}" class="nav-link @active('accounting.payments*')">
+                <i class="fa fa-money-bill-wave w-5"></i> <span>Pending Payments</span>
+            </a>
             <a href="{{ route('accounting.journals.index') }}" class="nav-link @active('accounting.journals*')">
                 <i class="fa fa-book w-5"></i> <span>Journal Vouchers</span>
             </a>

@@ -4,6 +4,8 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Accounting\AccountController;
 use App\Http\Controllers\Accounting\InvoiceController;
+use App\Http\Controllers\Accounting\PartyController;
+use App\Http\Controllers\Accounting\PaymentController;
 use App\Http\Controllers\Accounting\JournalController;
 use App\Http\Controllers\Accounting\ReportController;
 use App\Http\Controllers\Accounting\TallyImportController;
@@ -64,6 +66,15 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::resource('invoices', InvoiceController::class);
         Route::post('invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post');
         Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+
+        // Parties (vendors & customers) — export must precede the {party} route.
+        Route::get('parties', [PartyController::class, 'index'])->name('parties.index');
+        Route::get('parties/export', [PartyController::class, 'export'])->name('parties.export');
+        Route::get('parties/{party}', [PartyController::class, 'show'])->name('parties.show');
+
+        // Pending payments (payables / receivables) from recorded bills.
+        Route::get('payments/pending', [PaymentController::class, 'pending'])->name('payments.pending');
+        Route::get('payments/pending/export', [PaymentController::class, 'export'])->name('payments.export');
         Route::resource('journals', JournalController::class);
         Route::post('journals/{journal}/reverse', [JournalController::class, 'reverse'])->name('journals.reverse');
         Route::get('reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.pl');
