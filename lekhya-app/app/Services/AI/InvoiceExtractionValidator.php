@@ -79,15 +79,24 @@ class InvoiceExtractionValidator
         );
         $taxable = $lineTaxable > 0 ? round($lineTaxable, 2) : $subtotal;
 
+        // GST computed from each line's own rate — this is what Lekhya actually
+        // posts, so reconcile against it rather than the model's (often wrong)
+        // tax aggregate.
+        $lineTax = collect($ex['lines'] ?? [])->sum(function ($l) {
+            $t = ((float) ($l['quantity'] ?? 0)) * ((float) ($l['rate'] ?? 0)) * (1 - ((float) ($l['discount_percent'] ?? 0)) / 100);
+            return $t * ((float) ($l['gst_rate'] ?? 0)) / 100;
+        });
+        $taxUsed = $lineTax > 0 ? round($lineTax, 2) : $tax;
+
         $checks = [];
 
-        // 1. taxable + tax = total
-        $expected = $taxable + $tax;
+        // 1. line items + GST should equal the invoice total
+        $expected = round($taxable + $taxUsed, 2);
         $checks[] = [
             'key'     => 'totals',
-            'label'   => 'Taxable + GST = Total',
+            'label'   => 'Line items + GST = Total',
             'ok'      => abs($expected - $total) <= self::MONEY_TOLERANCE,
-            'message' => 'Totals don\'t reconcile (₹' . number_format($expected, 2) . ' vs ₹' . number_format($total, 2) . ')',
+            'message' => 'Line items + GST come to ₹' . number_format($expected, 2) . ', but the scanned total reads ₹' . number_format($total, 2) . '. Lekhya saves the amount computed from the lines — check the line values/GST %.',
             'fields'  => ['subtotal', 'total_amount'],
         ];
 

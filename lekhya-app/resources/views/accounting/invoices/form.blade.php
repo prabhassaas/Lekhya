@@ -47,23 +47,24 @@
         hsnRates: {{ $hsnRates->toJson() }},
         partyId: '{{ $prefill['party_id'] ?? '' }}',
         lines: {{ json_encode($initLines) }},
-        addLine() { this.lines.push({description: '', hsn_sac_code: '', quantity: 1, rate: '', discount_percent: 0}); },
+        addLine() { this.lines.push({description: '', hsn_sac_code: '', quantity: 1, rate: '', discount_percent: 0, gst_rate: ''}); },
         removeLine(i) { if (this.lines.length > 1) this.lines.splice(i, 1); },
         isInterstate() { return this.partyId && this.supplierState && this.partyStates[this.partyId] && this.partyStates[this.partyId] !== this.supplierState; },
-        lineTaxable(l) { return (parseFloat(l.quantity)||0) * (parseFloat(l.rate)||0) * (1 - (parseFloat(l.discount_percent)||0)/100); },
-        lineTax(l) {
-            let r = this.hsnRates[l.hsn_sac_code];
-            if (!r) {
-                const g = parseFloat(l.gst_rate);
-                r = g ? {cgst: g/2, sgst: g/2, igst: g} : {cgst:9, sgst:9, igst:18};
-            }
-            const t = this.lineTaxable(l);
-            return this.isInterstate() ? t * r.igst / 100 : t * (r.cgst + r.sgst) / 100;
+        // Effective GST %: the line's own rate wins; else the HSN master rate; else 0 (never guess).
+        lineRate(l) {
+            let g = parseFloat(l.gst_rate);
+            if ((!g || isNaN(g)) && this.hsnRates[l.hsn_sac_code]) g = this.hsnRates[l.hsn_sac_code].igst;
+            return (!g || isNaN(g)) ? 0 : g;
         },
-        subtotal() { return this.lines.reduce((s,l) => s + (parseFloat(l.quantity)||0)*(parseFloat(l.rate)||0), 0); },
+        lineTaxable(l) { return (parseFloat(l.quantity)||0) * (parseFloat(l.rate)||0) * (1 - (parseFloat(l.discount_percent)||0)/100); },
+        lineTax(l) { return this.lineTaxable(l) * this.lineRate(l) / 100; },
         taxableTotal() { return this.lines.reduce((s,l) => s + this.lineTaxable(l), 0); },
         taxTotal() { return this.lines.reduce((s,l) => s + this.lineTax(l), 0); },
+        cgstTotal() { return this.isInterstate() ? 0 : this.taxTotal()/2; },
+        sgstTotal() { return this.isInterstate() ? 0 : this.taxTotal()/2; },
+        igstTotal() { return this.isInterstate() ? this.taxTotal() : 0; },
         grandTotal() { return this.taxableTotal() + this.taxTotal(); },
+        inWords(n) { return window.amountInWords(n); },
      }">
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
         <form method="POST" action="{{ route('accounting.invoices.store') }}">
@@ -112,6 +113,7 @@
                             <th class="text-right px-3 py-2 w-20">Qty</th>
                             <th class="text-right px-3 py-2 w-28">Rate</th>
                             <th class="text-right px-3 py-2 w-24">Disc %</th>
+                            <th class="text-right px-3 py-2 w-24">GST %</th>
                             <th class="text-right px-3 py-2 w-28">Taxable</th>
                             <th class="text-right px-3 py-2 w-24">Tax</th>
                             <th class="w-8"></th>
@@ -123,17 +125,12 @@
                                 <td class="px-3 py-2">
                                     <input type="text" :name="'lines[' + i + '][description]'" x-model="line.description" required
                                            class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
-                                    {{-- carry unit + the bill's own GST rate captured from the scan --}}
                                     <input type="hidden" :name="'lines[' + i + '][unit]'" :value="line.unit || 'nos'">
-                                    <input type="hidden" :name="'lines[' + i + '][gst_rate]'" :value="line.gst_rate ?? ''">
                                 </td>
                                 <td class="px-3 py-2">
-                                    <select :name="'lines[' + i + '][hsn_sac_code]'" x-model="line.hsn_sac_code" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
-                                        <option value="">—</option>
-                                        @foreach($hsnCodes ?? [] as $h)
-                                        <option value="{{ $h->code }}">{{ $h->code }} ({{ (int) $h->igst_rate }}%)</option>
-                                        @endforeach
-                                    </select>
+                                    {{-- Free text (any HSN/SAC), with the master as type-ahead suggestions. --}}
+                                    <input type="text" list="hsnList" :name="'lines[' + i + '][hsn_sac_code]'" x-model="line.hsn_sac_code" placeholder="HSN"
+                                           class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
                                 </td>
                                 <td class="px-3 py-2">
                                     <input type="number" step="0.001" min="0.001" :name="'lines[' + i + '][quantity]'" x-model="line.quantity" required
@@ -145,6 +142,10 @@
                                 </td>
                                 <td class="px-3 py-2">
                                     <input type="number" step="0.01" min="0" max="100" :name="'lines[' + i + '][discount_percent]'" x-model="line.discount_percent"
+                                           class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-right">
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input type="number" step="0.01" min="0" max="100" :name="'lines[' + i + '][gst_rate]'" x-model="line.gst_rate" placeholder="%"
                                            class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-right">
                                 </td>
                                 <td class="px-3 py-2 text-right text-gray-600" x-text="'₹' + lineTaxable(line).toFixed(2)"></td>
@@ -169,13 +170,33 @@
                 <textarea name="notes" rows="2" placeholder="Payment terms, remarks…" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{{ old('notes', $prefill['notes'] ?? '') }}</textarea>
             </div>
 
-            <div class="flex justify-end">
-                <div class="w-64 space-y-1.5 text-sm">
+            <div class="flex flex-col items-end gap-2">
+                <div class="w-72 space-y-1.5 text-sm">
                     <div class="flex justify-between text-gray-500"><span>Taxable Value</span><span x-text="'₹' + taxableTotal().toFixed(2)"></span></div>
-                    <div class="flex justify-between text-gray-500"><span>Tax</span><span x-text="'₹' + taxTotal().toFixed(2)"></span></div>
+                    <template x-if="!isInterstate()">
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-gray-500"><span>CGST</span><span x-text="'₹' + cgstTotal().toFixed(2)"></span></div>
+                            <div class="flex justify-between text-gray-500"><span>SGST</span><span x-text="'₹' + sgstTotal().toFixed(2)"></span></div>
+                        </div>
+                    </template>
+                    <template x-if="isInterstate()">
+                        <div class="flex justify-between text-gray-500"><span>IGST</span><span x-text="'₹' + igstTotal().toFixed(2)"></span></div>
+                    </template>
+                    <div class="flex justify-between text-gray-500"><span>Total GST</span><span x-text="'₹' + taxTotal().toFixed(2)"></span></div>
                     <div class="flex justify-between font-semibold text-gray-900 text-base pt-1.5 border-t border-gray-200"><span>Total</span><span x-text="'₹' + grandTotal().toFixed(2)"></span></div>
                 </div>
+                <div class="w-full sm:max-w-md text-xs text-right">
+                    <span class="uppercase tracking-wide text-gray-400">In words: </span>
+                    <span class="text-gray-700 font-medium" x-text="inWords(grandTotal())"></span>
+                </div>
             </div>
+
+            {{-- HSN/SAC type-ahead suggestions from the master --}}
+            <datalist id="hsnList">
+                @foreach($hsnCodes ?? [] as $h)
+                <option value="{{ $h->code }}">{{ $h->code }} — {{ (int) $h->igst_rate }}%</option>
+                @endforeach
+            </datalist>
 
             <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-6">
                 <a href="{{ route('accounting.invoices.index', ['type' => $type ?? 'sales']) }}" class="px-5 py-2.5 text-gray-600 text-sm font-medium hover:text-gray-900">Cancel</a>
@@ -186,4 +207,34 @@
         </form>
     </div>
 </div>
+
+@push('scripts')
+<script>
+// Indian-format number to words (lakh / crore), with paise.
+window.amountInWords = function (num) {
+    num = Math.round((parseFloat(num) || 0) * 100) / 100;
+    const rupees = Math.floor(num);
+    const paise = Math.round((num - rupees) * 100);
+    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const two = (x) => x < 20 ? a[x] : (b[Math.floor(x / 10)] + (x % 10 ? ' ' + a[x % 10] : ''));
+    const three = (x) => (Math.floor(x / 100) ? a[Math.floor(x / 100)] + ' Hundred' + (x % 100 ? ' ' : '') : '') + (x % 100 ? two(x % 100) : '');
+    const words = (n) => {
+        if (n === 0) return 'Zero';
+        let out = '';
+        const crore = Math.floor(n / 10000000); n %= 10000000;
+        const lakh = Math.floor(n / 100000); n %= 100000;
+        const thou = Math.floor(n / 1000); n %= 1000;
+        if (crore) out += three(crore) + ' Crore ';
+        if (lakh) out += three(lakh) + ' Lakh ';
+        if (thou) out += three(thou) + ' Thousand ';
+        if (n) out += three(n);
+        return out.trim();
+    };
+    let res = words(rupees) + ' Rupees';
+    if (paise) res += ' and ' + words(paise) + ' Paise';
+    return res + ' Only';
+};
+</script>
+@endpush
 @endsection
