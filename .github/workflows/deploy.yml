@@ -55,6 +55,7 @@ jobs:
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GROQ_VISION_MODEL: ${{ secrets.GROQ_VISION_MODEL }}
+          GROQ_TEXT_MODEL: ${{ secrets.GROQ_TEXT_MODEL }}
           CASHFREE_CLIENT_ID: ${{ secrets.CASHFREE_CLIENT_ID }}
           CASHFREE_CLIENT_SECRET: ${{ secrets.CASHFREE_CLIENT_SECRET }}
         with:
@@ -62,7 +63,7 @@ jobs:
           username: ${{ secrets.HOSTINGER_SSH_USER }}
           password: ${{ secrets.HOSTINGER_SSH_PASS }}
           port: 65002
-          envs: MAIL_PASSWORD,GROQ_API_KEY,GROQ_VISION_MODEL,CASHFREE_CLIENT_ID,CASHFREE_CLIENT_SECRET
+          envs: MAIL_PASSWORD,GROQ_API_KEY,GROQ_VISION_MODEL,GROQ_TEXT_MODEL,CASHFREE_CLIENT_ID,CASHFREE_CLIENT_SECRET
           script: |
             set -e
             cd ~/domains/lekhya.prabhassaas.in/public_html
@@ -137,9 +138,10 @@ jobs:
             # GitHub secret; AI stays on the offline mock until it's set.
             set_env_force AI_DRIVER "groq"
             [ -n "$GROQ_API_KEY" ] && set_env_force GROQ_API_KEY "$GROQ_API_KEY"
-            # Optional override — lets us point at a current Groq vision model
-            # without a code change if the default one gets deprecated.
+            # Optional overrides — let us point at current/stronger Groq models
+            # without a code change (extraction accuracy, or model deprecation).
             [ -n "$GROQ_VISION_MODEL" ] && set_env_force GROQ_VISION_MODEL "$GROQ_VISION_MODEL"
+            [ -n "$GROQ_TEXT_MODEL" ] && set_env_force GROQ_TEXT_MODEL "$GROQ_TEXT_MODEL"
 
             # ── GST verification: Cashfree Verification Suite ─────────────
             # GSTIN lookup/auto-fill. Stays on the offline mock until both

@@ -203,6 +203,11 @@ class GroqDriver implements AiDriverInterface
             . "• SELLER (a.k.a. supplier / vendor): the party that ISSUED and RAISED this invoice. Find them on the letterhead at the top, in the 'For <company>' line above the signature, next to 'Authorised Signatory', and in the bank / UPI details given for payment — those belong to the SELLER.\n"
             . "• BUYER (a.k.a. recipient / customer): the party the invoice is billed TO — under headings like 'Bill To', 'Billed To', 'Buyer', \"Buyer's Details\", 'Bill To Party', 'Party', 'Customer', or 'Consignee'.\n"
             . "The two are never the same entity. A GSTIN printed next to 'Bill To' / 'Buyer' is the BUYER's, NOT the seller's — do not report it as the seller.\n\n"
+            . "LINE ITEMS — read the item table ROW BY ROW and keep each row's values on the same line. These tax fields are critical, so read them carefully:\n"
+            . "• hsn_sac: the HSN code (goods) or SAC code (services) for that row — a 4, 6, or 8-digit number, usually in an 'HSN/SAC' or 'HSN' column. If a number is printed for the row, capture it; only use null when nothing is printed.\n"
+            . "• gst_rate: that row's GST percentage (typically 0, 5, 12, 18 or 28). If the bill shows CGST% and SGST% in separate columns, gst_rate is their SUM (e.g. 9% + 9% = 18). If only a combined rate or IGST% is shown, use that.\n"
+            . "• Also capture quantity, unit, rate (price per unit), discount_percent, and amount (the row's taxable value).\n"
+            . "Never guess an HSN or a rate — but never leave one blank if it is legibly printed.\n\n"
             . "Return ONLY JSON with fields: invoice_number, invoice_date (YYYY-MM-DD), due_date (YYYY-MM-DD or null), "
             . "seller_name, seller_gstin, seller_pan, seller_address, seller_email, seller_phone, "
             . "buyer_name, buyer_gstin, buyer_pan, buyer_address, buyer_email, buyer_phone, "
@@ -210,6 +215,7 @@ class GroqDriver implements AiDriverInterface
             . "subtotal, cgst_amount, sgst_amount, igst_amount, cess_amount, round_off, total_amount, currency, "
             . "place_of_supply, reverse_charge (true/false), payment_terms, notes, "
             . "confidence (0-1 overall), field_confidence (object mapping each top-level field name to 0-1). "
+            . "Example line: {\"description\":\"Cotton yarn\",\"hsn_sac\":\"5205\",\"quantity\":10,\"unit\":\"kg\",\"rate\":250,\"discount_percent\":0,\"amount\":2500,\"gst_rate\":5}. "
             . "Use null for any field you cannot read. Never invent values.";
     }
 

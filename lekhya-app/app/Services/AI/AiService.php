@@ -151,7 +151,9 @@ class AiService
         }
 
         // Step down dimensions/quality until the base64 is safely under 4MB.
-        foreach ([[1600, 80], [1100, 70], [800, 65]] as [$dim, $quality]) {
+        // Start large — HSN codes and GST rates are small print, so more pixels
+        // means the model can actually read them (Groq allows up to 33 MP / 4MB).
+        foreach ([[2400, 82], [1800, 78], [1200, 70]] as [$dim, $quality]) {
             $w = imagesx($img);
             $h = imagesy($img);
             $scale  = min(1.0, $dim / max($w, $h));
