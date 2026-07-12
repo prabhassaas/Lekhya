@@ -26,7 +26,9 @@ class GroqDriver implements AiDriverInterface
         $this->apiKey      = ($config['api_key']      ?? null) ?: (string) config('services.ai.groq_key', '');
         $this->textModel   = ($config['text_model']   ?? null) ?: config('services.ai.groq_text_model', 'llama-3.3-70b-versatile');
         $this->visionModel = ($config['vision_model'] ?? null) ?: config('services.ai.groq_vision_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
-        $this->maxTokens   = (int) config('services.ai.max_tokens', 2048);
+        // Big enough that a full invoice's JSON (lines + field_confidence) isn't
+        // truncated — a cut-off body triggers Groq's "failed to generate JSON" 400.
+        $this->maxTokens   = (int) config('services.ai.max_tokens', 4096);
     }
 
     public function extractInvoice(string $text, ?string $imageBase64 = null): array
@@ -84,7 +86,7 @@ class GroqDriver implements AiDriverInterface
         return $last;
     }
 
-    private function callModel(array $content, string $model, bool $vision): array
+    private function callModel(array $content, string $model, bool $vision, bool $jsonMode = true): array
     {
         try {
             $body = [
@@ -93,7 +95,7 @@ class GroqDriver implements AiDriverInterface
                 'max_tokens'  => $this->maxTokens,
                 'temperature' => (float) config('services.ai.temperature', 0.1),
             ];
-            if (! $vision) {
+            if (! $vision && $jsonMode) {
                 // JSON mode keeps text responses strictly parseable.
                 $body['response_format'] = ['type' => 'json_object'];
             }
@@ -103,16 +105,35 @@ class GroqDriver implements AiDriverInterface
                 ->acceptJson()
                 ->post(self::ENDPOINT, $body);
 
-            if (! $response->successful()) {
-                $detail = $this->errorDetail($response->json());
-                Log::warning('Groq request failed', ['model' => $model, 'status' => $response->status(), 'body' => $response->body()]);
-                return [
-                    'error'             => 'Groq API error ' . $response->status() . ($detail ? ': ' . $detail : ''),
-                    '_retry_next_model' => $vision && $this->isModelUnavailable($response->status(), $detail),
-                ];
+            if ($response->successful()) {
+                return $this->parseJsonResponse($response->json('choices.0.message.content', ''));
             }
 
-            return $this->parseJsonResponse($response->json('choices.0.message.content', ''));
+            $json = $response->json();
+
+            // Groq's JSON mode is strict: it 400s with json_validate_failed and
+            // tucks the model's actual output into error.failed_generation, which
+            // is usually valid JSON. Salvage that before giving up.
+            $failed = data_get($json, 'error.failed_generation');
+            if (is_string($failed) && trim($failed) !== '') {
+                $parsed = $this->parseJsonResponse($failed);
+                if (! isset($parsed['error'])) {
+                    return $parsed;
+                }
+            }
+
+            // Some models reject strict JSON mode outright — retry once in plain
+            // mode and pull the JSON out of the text ourselves.
+            if (! $vision && $jsonMode) {
+                return $this->callModel($content, $model, $vision, jsonMode: false);
+            }
+
+            $detail = $this->errorDetail($json);
+            Log::warning('Groq request failed', ['model' => $model, 'status' => $response->status(), 'body' => $response->body()]);
+            return [
+                'error'             => 'Groq API error ' . $response->status() . ($detail ? ': ' . $detail : ''),
+                '_retry_next_model' => $vision && $this->isModelUnavailable($response->status(), $detail),
+            ];
         } catch (\Throwable $e) {
             Log::error('Groq driver error', ['error' => $e->getMessage()]);
             return ['error' => $e->getMessage()];
