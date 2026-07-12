@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Services\AI\AiService;
 use App\Services\AI\VendorResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AiAssistantController extends Controller
 {
@@ -35,7 +36,7 @@ class AiAssistantController extends Controller
         $result = $this->ai->extractFromFile($file);
 
         if (isset($result['error'])) {
-            return back()->withErrors(['file' => $result['error']]);
+            return back()->withErrors(['file' => $this->friendlyExtractError((string) $result['error'])]);
         }
 
         // A scanned bill is a PURCHASE: the party we record is the SELLER
@@ -138,20 +139,28 @@ class AiAssistantController extends Controller
 
         if ($suggestion->type === 'extraction') {
             $tenantId = $suggestion->tenant_id;
-            $vendor   = VendorResolver::forPurchase($suggestion->suggestion ?? [], Tenant::find($tenantId));
-            $gstin    = strtoupper(trim((string) ($vendor['gstin'] ?? '')));
 
-            // If a vendor with the same name/PAN but a DIFFERENT GSTIN already
-            // exists, don't silently merge or duplicate — ask the user whether
-            // this is a separate vendor or another branch of the same contact.
-            $exact = $gstin !== '' ? Party::where('tenant_id', $tenantId)->whereRaw('UPPER(gstin) = ?', [$gstin])->first() : null;
-            if (! $exact && $gstin !== '' && ($dupe = $this->findDuplicateParty($vendor, $tenantId))) {
-                return redirect()->route('ai.resolve', ['suggestion' => $suggestion->id, 'existing' => $dupe->id]);
+            // Never let vendor auto-creation crash the approval. Bad OCR data
+            // (over-long/garbled fields) must degrade to a manual vendor pick,
+            // not a 500 — the bill still opens pre-filled.
+            try {
+                $vendor = VendorResolver::forPurchase($suggestion->suggestion ?? [], Tenant::find($tenantId));
+                $gstin  = strtoupper(trim((string) ($vendor['gstin'] ?? '')));
+
+                // If a vendor with the same name/PAN but a DIFFERENT GSTIN already
+                // exists, don't silently merge or duplicate — ask the user whether
+                // this is a separate vendor or another branch of the same contact.
+                $exact = $gstin !== '' ? Party::where('tenant_id', $tenantId)->whereRaw('UPPER(gstin) = ?', [$gstin])->first() : null;
+                if (! $exact && $gstin !== '' && ($dupe = $this->findDuplicateParty($vendor, $tenantId))) {
+                    return redirect()->route('ai.resolve', ['suggestion' => $suggestion->id, 'existing' => $dupe->id]);
+                }
+
+                // A scanned bill is a purchase — make sure the vendor exists in the
+                // party list (matched or freshly created) so no detail is lost.
+                $this->resolveOrCreateParty($suggestion->suggestion ?? [], $tenantId, 'vendor');
+            } catch (\Throwable $e) {
+                Log::warning('AI approve: vendor auto-create failed', ['suggestion' => $suggestion->id, 'error' => $e->getMessage()]);
             }
-
-            // A scanned bill is a purchase — make sure the vendor exists in the
-            // party list (matched or freshly created) so no detail is lost.
-            $this->resolveOrCreateParty($suggestion->suggestion ?? [], $tenantId, 'vendor');
 
             return redirect()->route('accounting.invoices.create', ['type' => 'purchase', 'ai_suggestion' => $suggestion->id])
                 ->with('success', 'Approved — vendor and full invoice details pre-filled. Verify and post.');
@@ -211,19 +220,21 @@ class AiAssistantController extends Controller
         $existing = Party::where('tenant_id', $tenantId)->findOrFail($data['existing']);
         $vendor   = VendorResolver::forPurchase($suggestion->suggestion ?? [], auth()->user()->tenant);
         $gstin    = strtoupper(trim((string) ($vendor['gstin'] ?? '')));
+        $gstin    = strlen($gstin) === 15 ? $gstin : '';
 
         $params = ['type' => 'purchase', 'ai_suggestion' => $suggestion->id];
 
         if ($data['choice'] === 'branch') {
+            $pan = ! empty($vendor['pan']) ? strtoupper(trim((string) $vendor['pan'])) : ($gstin !== '' ? substr($gstin, 2, 10) : null);
             $branch = $existing->branches()->create([
                 'tenant_id'  => $tenantId,
-                'label'      => $data['label'] ?: 'Branch',
-                'gstin'      => $gstin ?: null,
-                'pan'        => $vendor['pan'] ?? (strlen($gstin) >= 12 ? substr($gstin, 2, 10) : null),
-                'email'      => $vendor['email'] ?? null,
-                'phone'      => $vendor['phone'] ?? null,
-                'address'    => $vendor['address'] ?? null,
-                'state_code' => strlen($gstin) >= 2 ? substr($gstin, 0, 2) : null,
+                'label'      => $this->clip($data['label'] ?: 'Branch', 255),
+                'gstin'      => $gstin !== '' ? $gstin : null,
+                'pan'        => ($pan && strlen($pan) === 10) ? $pan : null,
+                'email'      => $this->clip($vendor['email'] ?? null, 255),
+                'phone'      => $this->clip($vendor['phone'] ?? null, 15),
+                'address'    => $this->clip($vendor['address'] ?? null, 255),
+                'state_code' => $gstin !== '' ? substr($gstin, 0, 2) : null,
             ]);
             $params['party_id']        = $existing->id;
             $params['party_branch_id'] = $branch->id;
@@ -317,26 +328,52 @@ class AiAssistantController extends Controller
     /** Create a party straight from a normalized vendor block (no matching). */
     private function createPartyFromVendor(array $vendor, int $tenantId, string $type): Party
     {
+        // Clean before write. OCR can misread a long string as a GSTIN/PAN/phone;
+        // storing it overflows the column and MySQL 500s. A real GSTIN is exactly
+        // 15 chars and a PAN exactly 10 — anything else is a misread, so drop it.
         $gstin = strtoupper(trim((string) ($vendor['gstin'] ?? '')));
+        $gstin = strlen($gstin) === 15 ? $gstin : '';
         $name  = trim((string) ($vendor['name'] ?? ''));
 
-        // GSTIN encodes the state (first 2 digits) and PAN (chars 3–12).
-        $stateCode = strlen($gstin) >= 2 ? substr($gstin, 0, 2) : null;
-        $pan       = ! empty($vendor['pan']) ? strtoupper(trim($vendor['pan']))
-                     : (strlen($gstin) >= 12 ? substr($gstin, 2, 10) : null);
+        $stateCode = $gstin !== '' ? substr($gstin, 0, 2) : null;
+        $pan       = ! empty($vendor['pan']) ? strtoupper(trim((string) $vendor['pan']))
+                     : ($gstin !== '' ? substr($gstin, 2, 10) : null);
+        $pan       = ($pan && strlen($pan) === 10) ? $pan : null;
 
         return Party::create([
             'tenant_id'  => $tenantId,
             'type'       => $type,
-            'name'       => $name !== '' ? $name : 'Unnamed Vendor',
+            'name'       => $this->clip($name !== '' ? $name : 'Unnamed Vendor', 255),
             'gstin'      => $gstin !== '' ? $gstin : null,
             'pan'        => $pan,
-            'email'      => $vendor['email'] ?? null,
-            'phone'      => $vendor['phone'] ?? null,
-            'address'    => $vendor['address'] ?? null,
+            'email'      => $this->clip($vendor['email'] ?? null, 255),
+            'phone'      => $this->clip($vendor['phone'] ?? null, 15),
+            'address'    => $this->clip($vendor['address'] ?? null, 255),
             'state_code' => $stateCode,
             'is_active'  => true,
         ]);
+    }
+
+    /** Trim + cap a value to a column length, returning null when empty. */
+    private function clip(mixed $value, int $length): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+        return $value === '' ? null : mb_substr($value, 0, $length);
+    }
+
+    /** Turn a raw extraction error into plain guidance for the user. */
+    private function friendlyExtractError(string $error): string
+    {
+        $e = strtolower($error);
+        return match (true) {
+            str_contains($e, 'json') || str_contains($e, 'parse')
+                => "Couldn't read this file clearly. Upload a sharper photo or the original PDF and try again.",
+            str_contains($e, 'could not extract text')
+                => "This file had no readable text. Use a clear PDF or a well-lit, straight photo of the invoice.",
+            str_contains($e, 'groq') || str_contains($e, 'api error') || str_contains($e, 'unavailable')
+                => "The AI reader had trouble with this bill. Please try again in a moment.",
+            default => $error,
+        };
     }
 
     public function reject(AiSuggestion $suggestion)
