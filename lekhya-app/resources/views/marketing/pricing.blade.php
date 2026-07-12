@@ -133,7 +133,7 @@
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Basic GST reports</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Bank reconciliation</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Tally XML import &amp; PDF export</span></li>
-                    <li class="flex items-start gap-2"><i class="fa fa-xmark text-gray-300 mt-0.5 w-4 flex-shrink-0"></i><span class="text-gray-400">AI OCR extraction</span></li>
+                    <li class="flex items-start gap-2"><i class="fa fa-bolt text-amber-500 mt-0.5 w-4 flex-shrink-0"></i><span><strong>150</strong> AI invoice scans / month</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-xmark text-gray-300 mt-0.5 w-4 flex-shrink-0"></i><span class="text-gray-400">Seedha Bill connector</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-xmark text-gray-300 mt-0.5 w-4 flex-shrink-0"></i><span class="text-gray-400">GST e-filing &amp; e-Invoice</span></li>
                 </ul>
@@ -180,7 +180,7 @@
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>5 user seats</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>1 company</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Everything in ERP Lite</span></li>
-                    <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>AI OCR invoice extraction</span></li>
+                    <li class="flex items-start gap-2"><i class="fa fa-bolt text-amber-500 mt-0.5 w-4 flex-shrink-0"></i><span><strong>750</strong> AI invoice scans / month</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Seedha Bill live connector</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>GST e-filing (GSTR-1 &amp; 3B)</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>e-Invoice (IRN) &amp; e-Way Bill</span></li>
@@ -214,6 +214,7 @@
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>10 user seats</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>3 companies</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>All ERP Pro features</span></li>
+                    <li class="flex items-start gap-2"><i class="fa fa-bolt text-amber-500 mt-0.5 w-4 flex-shrink-0"></i><span><strong>750</strong> AI invoice scans / month</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>All future ERP updates included</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Priority support, forever</span></li>
                 </ul>
@@ -274,6 +275,7 @@
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>10 client seats</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>All ERP Pro features</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>UDIN register &amp; tracking</span></li>
+                    <li class="flex items-start gap-2"><i class="fa fa-bolt text-amber-500 mt-0.5 w-4 flex-shrink-0"></i><span><strong>750</strong> AI invoice scans / month</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Compliance calendar &amp; alerts</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-xmark text-gray-300 mt-0.5 w-4 flex-shrink-0"></i><span class="text-gray-400">Audit forms (3CD / 3CB)</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-xmark text-gray-300 mt-0.5 w-4 flex-shrink-0"></i><span class="text-gray-400">DSC expiry tracking</span></li>
@@ -321,6 +323,7 @@
                 <ul class="space-y-3 text-sm text-gray-600 mt-auto">
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Unlimited client seats</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Everything in Pramaan Lite</span></li>
+                    <li class="flex items-start gap-2"><i class="fa fa-bolt text-amber-500 mt-0.5 w-4 flex-shrink-0"></i><span><strong>3,000</strong> AI invoice scans / month</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>Audit forms (Form 3CD &amp; 3CB)</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>DSC expiry tracking</span></li>
                     <li class="flex items-start gap-2"><i class="fa fa-check text-green-500 mt-0.5 w-4 flex-shrink-0"></i><span>White-label PDF reports</span></li>
@@ -413,6 +416,7 @@
                     <li class="flex items-center gap-2"><i class="fa fa-check text-green-500 w-4 flex-shrink-0"></i>SeedhaBill real-time sync</li>
                     <li class="flex items-center gap-2"><i class="fa fa-check text-green-500 w-4 flex-shrink-0"></i>Automatic invoice import &amp; matching</li>
                     <li class="flex items-center gap-2"><i class="fa fa-check text-green-500 w-4 flex-shrink-0"></i>5 user seats · 1 company</li>
+                    <li class="flex items-center gap-2"><i class="fa fa-bolt text-amber-500 w-4 flex-shrink-0"></i><strong class="mr-1">1,000</strong> AI invoice scans / month</li>
                 </ul>
             </div>
 
@@ -457,6 +461,7 @@
                     <li class="flex items-center gap-2"><i class="fa fa-check text-green-500 w-4 flex-shrink-0"></i>SeedhaBill for all clients</li>
                     <li class="flex items-center gap-2"><i class="fa fa-check text-green-500 w-4 flex-shrink-0"></i>Multi-client SeedhaBill dashboard</li>
                     <li class="flex items-center gap-2"><i class="fa fa-check text-green-500 w-4 flex-shrink-0"></i>Unlimited clients · 20 users</li>
+                    <li class="flex items-center gap-2"><i class="fa fa-bolt text-amber-500 w-4 flex-shrink-0"></i><strong class="mr-1">3,500</strong> AI invoice scans / month</li>
                 </ul>
             </div>
 

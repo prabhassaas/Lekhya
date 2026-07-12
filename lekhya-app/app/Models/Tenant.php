@@ -39,6 +39,11 @@ class Tenant extends Model
         return $this->hasMany(Entitlement::class);
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
     public function aiSetting()
     {
         return $this->hasOne(AiSetting::class);
@@ -85,5 +90,45 @@ class Tenant extends Model
             ->where('app', 'lekhya')
             ->where('is_active', true)
             ->exists();
+    }
+
+    /** The plan currently powering this tenant (active/trial subscription), if any. */
+    public function activePlan(): ?Plan
+    {
+        return $this->subscriptions()
+            ->whereIn('status', ['active', 'trial'])
+            ->latest()
+            ->first()?->plan;
+    }
+
+    /** Monthly AI request allowance (invoice scans, NL queries, auto-coding). */
+    public function aiCreditLimit(): int
+    {
+        $plan = $this->activePlan();
+        if (! $plan) {
+            return 50; // trial / no subscription — small starter allowance
+        }
+        return $plan->ai_credits === null ? PHP_INT_MAX : (int) $plan->ai_credits; // null = unlimited
+    }
+
+    public function aiCreditsUnlimited(): bool
+    {
+        return $this->aiCreditLimit() >= PHP_INT_MAX;
+    }
+
+    public function aiCreditsUsed(): int
+    {
+        return AiUsage::monthlyCount($this->id);
+    }
+
+    public function aiCreditsRemaining(): int
+    {
+        return max(0, $this->aiCreditLimit() - $this->aiCreditsUsed());
+    }
+
+    /** Only entitled tenants that have run through their monthly allowance. */
+    public function aiCreditsExhausted(): bool
+    {
+        return $this->aiEnabled() && ! $this->aiCreditsUnlimited() && $this->aiCreditsRemaining() <= 0;
     }
 }

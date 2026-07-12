@@ -11,16 +11,40 @@
       <h1 class="text-2xl font-bold text-gray-900">AI Assistant</h1>
       <p class="text-sm text-gray-500 mt-1">AI proposes — you approve. Nothing posts automatically.</p>
     </div>
-    <div class="flex items-center space-x-2 px-4 py-2 rounded-full border text-sm font-medium
-      {{ $aiOnline ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700' }}">
-      <span class="w-2 h-2 rounded-full {{ $aiOnline ? 'bg-green-500' : 'bg-amber-400' }}"></span>
-      @if($aiOnline)
-        <span>{{ ucfirst($driverName) }} · Online</span>
-      @else
-        <span>Mock mode · Ollama offline</span>
-      @endif
+    <div class="flex items-center gap-2">
+      @isset($aiCredits)
+      <div class="px-3 py-2 rounded-full border text-sm font-medium
+        {{ (!$aiCredits['unlimited'] && $aiCredits['remaining'] <= 0) ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-50 border-gray-200 text-gray-600' }}"
+        title="AI credits reset on the 1st of each month">
+        <i class="fa fa-bolt text-amber-500 mr-1"></i>
+        @if($aiCredits['unlimited'])
+          AI credits: Unlimited
+        @else
+          {{ number_format($aiCredits['remaining']) }} / {{ number_format($aiCredits['limit']) }} credits left
+        @endif
+      </div>
+      @endisset
+      <div class="flex items-center space-x-2 px-4 py-2 rounded-full border text-sm font-medium
+        {{ $aiOnline ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700' }}">
+        <span class="w-2 h-2 rounded-full {{ $aiOnline ? 'bg-green-500' : 'bg-amber-400' }}"></span>
+        @if($aiOnline)
+          <span>{{ ucfirst($driverName) }} · Online</span>
+        @else
+          <span>Mock mode · Ollama offline</span>
+        @endif
+      </div>
     </div>
   </div>
+
+  @isset($aiCredits)
+  @if(!$aiCredits['unlimited'] && $aiCredits['remaining'] <= 0)
+  <div class="bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm">
+    <strong>You've used all {{ number_format($aiCredits['limit']) }} AI credits this month.</strong>
+    Scans and AI queries are paused until the 1st.
+    <a href="{{ route('settings.billing') }}" class="underline font-medium ml-1">Upgrade your plan →</a>
+  </div>
+  @endif
+  @endisset
 
   @if(!$aiOnline && $driverName === 'mock')
   <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">

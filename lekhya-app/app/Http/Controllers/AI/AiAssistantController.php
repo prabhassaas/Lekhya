@@ -23,12 +23,29 @@ class AiAssistantController extends Controller
         $driverName = $this->ai->getDriverName();
         $aiOnline   = $this->ai->isAvailable();
 
-        return view('ai.index', compact('pending', 'history', 'driverName', 'aiOnline'));
+        $tenant    = auth()->user()->tenant;
+        $aiCredits = [
+            'used'      => $tenant->aiCreditsUsed(),
+            'limit'     => $tenant->aiCreditLimit(),
+            'remaining' => $tenant->aiCreditsRemaining(),
+            'unlimited' => $tenant->aiCreditsUnlimited(),
+        ];
+
+        return view('ai.index', compact('pending', 'history', 'driverName', 'aiOnline', 'aiCredits'));
+    }
+
+    /** True when the tenant has used up its monthly AI allowance. */
+    private function creditsExhausted(): bool
+    {
+        return (bool) auth()->user()->tenant?->aiCreditsExhausted();
     }
 
     public function extractInvoice(Request $request)
     {
         $request->validate(['file' => 'required|file|mimes:pdf,png,jpg,jpeg|max:10240']);
+        if ($this->creditsExhausted()) {
+            return back()->withErrors(['file' => "You've used all your AI credits for this month. Upgrade your plan for more scans."]);
+        }
         $tenantId = auth()->user()->tenant_id;
         $file     = $request->file('file');
         $path     = $file->store("ai-uploads/{$tenantId}");
@@ -65,6 +82,9 @@ class AiAssistantController extends Controller
     public function naturalLanguageQuery(Request $request)
     {
         $request->validate(['query' => 'required|string|max:500']);
+        if ($this->creditsExhausted()) {
+            return response()->json(['error' => "Monthly AI credits used up — upgrade your plan for more."], 429);
+        }
         $tenantId = auth()->user()->tenant_id;
 
         $result = $this->ai->runNlQuery($request->query, $tenantId);
@@ -95,6 +115,9 @@ class AiAssistantController extends Controller
             'amount'      => 'required|numeric|min:0',
             'vendor'      => 'nullable|string|max:255',
         ]);
+        if ($this->creditsExhausted()) {
+            return response()->json(['error' => "Monthly AI credits used up — upgrade your plan for more."], 429);
+        }
 
         $tenantId = auth()->user()->tenant_id;
         $result   = $this->ai->suggestAccount($request->description, (float) $request->amount, $request->vendor ?? '');

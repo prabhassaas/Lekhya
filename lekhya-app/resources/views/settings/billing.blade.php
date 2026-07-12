@@ -30,6 +30,30 @@
         @endif
     </div>
 
+    {{-- AI usage --}}
+    @php
+        $aiUsed = $tenant?->aiCreditsUsed() ?? 0;
+        $aiLimit = $tenant?->aiCreditLimit() ?? 0;
+        $aiUnlimited = $tenant?->aiCreditsUnlimited() ?? false;
+        $aiPct = ($aiUnlimited || $aiLimit <= 0) ? 0 : min(100, round($aiUsed / $aiLimit * 100));
+    @endphp
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-900"><i class="fa fa-bolt text-amber-500 mr-1.5"></i>AI Credits</h3>
+            <span class="text-sm text-gray-500">
+                @if($aiUnlimited) Unlimited @else {{ number_format($aiUsed) }} / {{ number_format($aiLimit) }} used this month @endif
+            </span>
+        </div>
+        @unless($aiUnlimited)
+        <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-2 rounded-full {{ $aiPct >= 100 ? 'bg-red-500' : ($aiPct >= 80 ? 'bg-amber-500' : 'bg-navy-500') }}" style="width: {{ $aiPct }}%"></div>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">
+            {{ number_format(max(0, $aiLimit - $aiUsed)) }} credits left — resets on the 1st. 1 credit = 1 invoice scan, AI question, or auto-coding.
+        </p>
+        @endunless
+    </div>
+
     {{-- Invoice email test --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
         <h3 class="font-semibold text-gray-900 mb-1">Subscription Invoices</h3>

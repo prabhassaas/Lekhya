@@ -165,6 +165,8 @@ jobs:
             # Strict-scoped to the demo tenant only — never touches real accounts.
             # Curated HSN/SAC master with standard GST rates (idempotent).
             php artisan db:seed --class=HsnMasterSeeder --force --no-interaction || true
+            # Plans + AI credit allowances (idempotent updateOrCreate).
+            php artisan db:seed --class=PlanSeeder --force --no-interaction || true
             php artisan db:seed --class=DemoDataSeeder --force --no-interaction || true
             php artisan db:seed --class=PramaanDemoSeeder --force --no-interaction || true
             echo "✓ Deployment complete"
