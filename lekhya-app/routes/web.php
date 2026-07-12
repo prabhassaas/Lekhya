@@ -76,6 +76,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('parties', [PartyController::class, 'index'])->name('parties.index');
         Route::get('parties/export', [PartyController::class, 'export'])->name('parties.export');
         Route::get('parties/{party}', [PartyController::class, 'show'])->name('parties.show');
+        Route::delete('parties/{party}', [PartyController::class, 'destroy'])->name('parties.destroy');
 
         // Pending payments (payables / receivables) from recorded bills.
         Route::get('payments/pending', [PaymentController::class, 'pending'])->name('payments.pending');
@@ -137,6 +138,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('suggest-account', [AiAssistantController::class, 'suggestAccount'])->name('suggest-account');
         Route::post('suggestions/{suggestion}/approve', [AiAssistantController::class, 'approve'])->name('approve');
         Route::post('suggestions/{suggestion}/reject', [AiAssistantController::class, 'reject'])->name('reject');
+        // Duplicate-vendor resolution (branch vs separate) after approval.
+        Route::get('suggestions/{suggestion}/resolve', [AiAssistantController::class, 'resolveDuplicate'])->name('resolve');
+        Route::post('suggestions/{suggestion}/resolve', [AiAssistantController::class, 'storeResolve'])->name('resolve.store');
     });
 
     // Lekhya Pramaan (CA Edition)

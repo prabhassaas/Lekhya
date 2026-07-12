@@ -54,6 +54,7 @@
                     <th class="text-left px-5 py-2.5">Location</th>
                     <th class="text-right px-5 py-2.5">Bills</th>
                     <th class="text-right px-5 py-2.5">Outstanding</th>
+                    <th class="px-5 py-2.5"></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
@@ -78,10 +79,19 @@
                     <td class="px-5 py-3 text-right {{ ($balances[$p->id] ?? 0) > 0 ? 'text-orange-600 font-medium' : 'text-gray-400' }}">
                         ₹{{ number_format($balances[$p->id] ?? 0, 2) }}
                     </td>
+                    <td class="px-5 py-3 text-right">
+                        <form method="POST" action="{{ route('accounting.parties.destroy', $p) }}"
+                              onsubmit="return confirm('Delete “{{ $p->name }}”? This cannot be undone.');">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-gray-300 hover:text-red-600" title="Delete">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </form>
+                    </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" class="px-5 py-10 text-center text-gray-400">
+                    <td colspan="10" class="px-5 py-10 text-center text-gray-400">
                         No {{ $tab === 'all' ? 'parties' : $labels[$tab] }} yet.
                         @if($tab === 'vendor')
                             <a href="{{ route('ai.index') }}" class="text-blue-600 hover:underline">Scan a purchase bill →</a>

@@ -14,7 +14,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'tenant_id', 'fiscal_year_id', 'type', 'invoice_number', 'reference_number',
-        'invoice_date', 'due_date', 'party_id', 'place_of_supply', 'is_interstate',
+        'invoice_date', 'due_date', 'party_id', 'party_branch_id', 'place_of_supply', 'is_interstate',
         'reverse_charge', 'status', 'source', 'source_invoice_id',
         'subtotal', 'discount_amount', 'taxable_amount',
         'cgst_amount', 'sgst_amount', 'igst_amount', 'cess_amount',
@@ -37,6 +37,7 @@ class Invoice extends Model
 
     public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
     public function party(): BelongsTo { return $this->belongsTo(Party::class); }
+    public function branch(): BelongsTo { return $this->belongsTo(PartyBranch::class, 'party_branch_id'); }
     public function lines(): HasMany { return $this->hasMany(InvoiceLine::class); }
     public function journal(): BelongsTo { return $this->belongsTo(Journal::class); }
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }

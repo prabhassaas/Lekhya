@@ -9,4 +9,5 @@ class Party extends Model {
     protected $casts = ['is_active' => 'boolean'];
     public function tenant() { return $this->belongsTo(Tenant::class); }
     public function invoices() { return $this->hasMany(Invoice::class); }
+    public function branches() { return $this->hasMany(PartyBranch::class); }
 }

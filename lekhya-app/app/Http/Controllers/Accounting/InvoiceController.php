@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
-use App\Models\{Invoice, Party, FiscalYear, Account, HsnSacCode, AiSuggestion};
+use App\Models\{Invoice, Party, PartyBranch, FiscalYear, Account, HsnSacCode, AiSuggestion};
 use App\Services\Accounting\InvoicePostingService;
 use App\Services\GST\GstRateEngine;
 use App\Services\AI\InvoiceExtractionValidator;
@@ -70,14 +70,26 @@ class InvoiceController extends Controller {
             'gst_rate'         => $l['gst_rate'] ?? null, // preview fallback when HSN isn't in the rate table
         ])->values()->all();
 
+        // The duplicate-resolution step can pin an explicit party (and branch),
+        // overriding the name/GSTIN match above.
+        if ($request->filled('party_id')) {
+            $match = $parties->firstWhere('id', (int) $request->get('party_id')) ?: $match;
+        }
+        $branch = $request->filled('party_branch_id')
+            ? \App\Models\PartyBranch::where('tenant_id', $tenantId)->find((int) $request->get('party_branch_id'))
+            : null;
+
         $validation = app(InvoiceExtractionValidator::class)->validate($ex);
 
         return [
             'suggestion_id'    => $suggestion->id,
             'party_id'         => $match?->id,
-            'party_name'       => $name,
+            'party_name'       => $match?->name ?: $name,
             'party_gstin'      => $gstin ?: null,
             'party_matched'    => (bool) $match,
+            'party_branch_id'  => $branch?->id,
+            'branch_label'     => $branch?->label,
+            'branch_gstin'     => $branch?->gstin,
             'reference_number' => $ex['invoice_number'] ?? null, // the vendor's own bill number
             'invoice_date'     => $ex['invoice_date'] ?? null,
             'due_date'         => $ex['due_date'] ?? null,
@@ -92,6 +104,7 @@ class InvoiceController extends Controller {
         $validated = $request->validate([
             'type' => 'required|in:sales,purchase',
             'party_id' => 'required|exists:parties,id',
+            'party_branch_id' => 'nullable|integer|exists:party_branches,id',
             'reference_number' => 'nullable|string|max:100',
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
@@ -110,8 +123,15 @@ class InvoiceController extends Controller {
         $fiscalYear = FiscalYear::where('tenant_id', $tenantId)->where('is_current', true)->firstOrFail();
         $lines = $request->input('lines', []);
 
+        // A bill can be booked against a branch (a different GST registration of
+        // the same vendor) — its state, not the parent's, drives the GST split.
+        $branch = ! empty($validated['party_branch_id'])
+            ? PartyBranch::where('tenant_id', $tenantId)->where('party_id', $party->id)->find($validated['party_branch_id'])
+            : null;
+        $validated['party_branch_id'] = $branch?->id; // ignore a mismatched branch
+
         $supplierState = $tenant->state_code ?? '';
-        $buyerState = $party->state_code ?? $supplierState;
+        $buyerState = ($branch?->state_code ?: $party->state_code) ?: $supplierState;
         $isInterstate = $supplierState !== $buyerState;
 
         $subtotal = 0; $taxableTotal = 0; $cgstTotal = 0; $sgstTotal = 0; $igstTotal = 0;

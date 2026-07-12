@@ -37,11 +37,31 @@ class PartyController extends Controller
     {
         abort_if($party->tenant_id !== auth()->user()->tenant_id, 403);
 
+        $party->load('branches');
         $invoices    = $party->invoices()->latest('invoice_date')->paginate(20);
         $outstanding = (float) $party->invoices()->whereNotIn('status', ['cancelled', 'paid'])->sum('balance_amount');
         $billed      = (float) $party->invoices()->whereNotIn('status', ['cancelled'])->sum('total_amount');
 
         return view('accounting.parties.show', compact('party', 'invoices', 'outstanding', 'billed'));
+    }
+
+    public function destroy(Party $party)
+    {
+        abort_if($party->tenant_id !== auth()->user()->tenant_id, 403);
+
+        // Don't orphan ledger records — a party with bills/invoices can't be
+        // removed until those are dealt with. Wrong auto-created vendors with no
+        // linked invoices (the confusing case) delete freely.
+        $linked = $party->invoices()->count();
+        if ($linked > 0) {
+            return back()->with('error', "Can't delete “{$party->name}” — it has {$linked} linked invoice/bill(s). Delete or reassign those first.");
+        }
+
+        $tab  = $party->type === 'customer' ? 'customer' : 'vendor';
+        $name = $party->name;
+        $party->delete(); // soft delete
+
+        return redirect()->route('accounting.parties.index', ['tab' => $tab])->with('success', "“{$name}” deleted.");
     }
 
     public function export(Request $request): StreamedResponse

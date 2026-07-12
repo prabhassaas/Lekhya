@@ -5,10 +5,19 @@
 @section('content')
 <div class="py-4 space-y-6">
 
-    <a href="{{ route('accounting.parties.index', ['tab' => $party->type === 'customer' ? 'customer' : 'vendor']) }}"
-       class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
-        <i class="fa fa-arrow-left mr-1.5"></i>Back to list
-    </a>
+    <div class="flex items-center justify-between">
+        <a href="{{ route('accounting.parties.index', ['tab' => $party->type === 'customer' ? 'customer' : 'vendor']) }}"
+           class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+            <i class="fa fa-arrow-left mr-1.5"></i>Back to list
+        </a>
+        <form method="POST" action="{{ route('accounting.parties.destroy', $party) }}"
+              onsubmit="return confirm('Delete “{{ $party->name }}”? This cannot be undone.');">
+            @csrf @method('DELETE')
+            <button type="submit" class="inline-flex items-center text-sm text-red-600 hover:text-red-700 font-medium">
+                <i class="fa fa-trash mr-1.5"></i>Delete
+            </button>
+        </form>
+    </div>
 
     {{-- Header card --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
@@ -42,6 +51,37 @@
             </div>
         </div>
     </div>
+
+    {{-- Branches / additional GST registrations --}}
+    @if($party->branches->isNotEmpty())
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <i class="fa fa-code-branch text-navy-500"></i>
+            <h3 class="font-semibold text-gray-800 text-sm">Branches &amp; GST registrations</h3>
+            <span class="text-xs text-gray-400">({{ $party->branches->count() }})</span>
+        </div>
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-2.5">Branch</th>
+                    <th class="text-left px-5 py-2.5">GSTIN</th>
+                    <th class="text-left px-5 py-2.5">State</th>
+                    <th class="text-left px-5 py-2.5">Address</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                @foreach($party->branches as $b)
+                <tr>
+                    <td class="px-5 py-3 text-gray-800 font-medium">{{ $b->label ?: 'Branch' }}</td>
+                    <td class="px-5 py-3 font-mono text-xs text-gray-600">{{ $b->gstin ?: '—' }}</td>
+                    <td class="px-5 py-3 text-gray-500">{{ $b->state ?: $b->state_code ?: '—' }}</td>
+                    <td class="px-5 py-3 text-gray-500">{{ $b->address ?: '—' }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
 
     {{-- Their invoices --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">

@@ -79,6 +79,10 @@
                         <option value="{{ $p->id }}">{{ $p->name }}{{ $p->gstin ? ' — ' . $p->gstin : '' }}</option>
                         @endforeach
                     </select>
+                    @if($prefill['party_branch_id'] ?? null)
+                    <input type="hidden" name="party_branch_id" value="{{ $prefill['party_branch_id'] }}">
+                    <p class="text-xs text-navy-600 mt-1"><i class="fa fa-code-branch mr-1"></i>Booked to branch: <strong>{{ $prefill['branch_label'] ?: 'Branch' }}</strong>{{ ($prefill['branch_gstin'] ?? null) ? ' · '.$prefill['branch_gstin'] : '' }}</p>
+                    @endif
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ ($type ?? 'sales') === 'purchase' ? 'Vendor Bill / Invoice No.' : 'Reference No.' }}</label>
