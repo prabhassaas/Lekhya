@@ -12,7 +12,7 @@ class GstRateEngine
      */
     public function getRates(string $hsnCode, string $supplierStateCode, string $buyerStateCode): array
     {
-        $hsn = HsnSacCode::where('code', $hsnCode)->first();
+        $hsn = $this->lookup($hsnCode);
 
         if (! $hsn) {
             return $this->defaultRates($supplierStateCode, $buyerStateCode);
@@ -37,6 +37,21 @@ class GstRateEngine
             'sgst_rate'     => $hsn->sgst_rate,
             'cess_rate'     => $hsn->cess_rate,
         ];
+    }
+
+    /** Exact HSN/SAC code, then progressively shorter prefixes (8→6→4-digit chapter). */
+    private function lookup(string $code): ?HsnSacCode
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return null;
+        }
+        foreach ([$code, substr($code, 0, 6), substr($code, 0, 4), substr($code, 0, 2)] as $candidate) {
+            if (strlen($candidate) >= 2 && ($hit = HsnSacCode::where('code', $candidate)->first())) {
+                return $hit;
+            }
+        }
+        return null;
     }
 
     public function calculateTax(float $taxableAmount, array $rates): array

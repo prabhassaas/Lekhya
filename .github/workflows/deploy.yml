@@ -163,6 +163,8 @@ jobs:
             # DemoDataSeeder ensures the demo tenant/invoices exist; PramaanDemoSeeder
             # enables the CA edition + seeds UDIN/audit/compliance/notice data.
             # Strict-scoped to the demo tenant only — never touches real accounts.
+            # Curated HSN/SAC master with standard GST rates (idempotent).
+            php artisan db:seed --class=HsnMasterSeeder --force --no-interaction || true
             php artisan db:seed --class=DemoDataSeeder --force --no-interaction || true
             php artisan db:seed --class=PramaanDemoSeeder --force --no-interaction || true
             echo "✓ Deployment complete"

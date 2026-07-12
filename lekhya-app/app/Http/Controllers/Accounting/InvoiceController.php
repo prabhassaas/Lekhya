@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
-use App\Models\{Invoice, Party, PartyBranch, FiscalYear, Account, HsnSacCode, AiSuggestion};
+use App\Models\{Invoice, Party, PartyBranch, FiscalYear, Account, HsnSacCode, TenantItem, AiSuggestion};
 use App\Services\Accounting\InvoicePostingService;
 use App\Services\GST\GstRateEngine;
 use App\Services\AI\InvoiceExtractionValidator;
@@ -60,15 +60,37 @@ class InvoiceController extends Controller {
             $match = $parties->first(fn($p) => strcasecmp(trim((string) $p->name), $name) === 0);
         }
 
-        $lines = collect($ex['lines'] ?? [])->map(fn($l) => [
-            'description'      => $l['description'] ?? '',
-            'hsn_sac_code'     => (string) ($l['hsn_sac'] ?? $l['hsn_sac_code'] ?? ''),
-            'quantity'         => $l['quantity'] ?? 1,
-            'unit'             => $l['unit'] ?? 'nos',
-            'rate'             => $l['rate'] ?? ($l['amount'] ?? ''),
-            'discount_percent' => $l['discount_percent'] ?? 0,
-            'gst_rate'         => $l['gst_rate'] ?? null, // preview fallback when HSN isn't in the rate table
-        ])->values()->all();
+        $lines = collect($ex['lines'] ?? [])->map(function ($l) use ($tenantId) {
+            $desc = $l['description'] ?? '';
+            $hsn  = (string) ($l['hsn_sac'] ?? $l['hsn_sac_code'] ?? '');
+            $rate = $l['gst_rate'] ?? null;
+            $rateMissing = ($rate === null || $rate === '');
+
+            // Fill gaps the OCR left: first from what we've learned about this
+            // product on past bills, then from the HSN master rate table.
+            if ($desc !== '' && ($hsn === '' || $rateMissing) && ($item = TenantItem::match($tenantId, $desc))) {
+                if ($hsn === '' && $item->hsn_sac) {
+                    $hsn = $item->hsn_sac;
+                }
+                if ($rateMissing && $item->gst_rate !== null) {
+                    $rate = (float) $item->gst_rate;
+                    $rateMissing = false;
+                }
+            }
+            if ($rateMissing && $hsn !== '' && ($hsnRate = $this->hsnRate($hsn)) !== null) {
+                $rate = $hsnRate;
+            }
+
+            return [
+                'description'      => $desc,
+                'hsn_sac_code'     => $hsn,
+                'quantity'         => $l['quantity'] ?? 1,
+                'unit'             => $l['unit'] ?? 'nos',
+                'rate'             => $l['rate'] ?? ($l['amount'] ?? ''),
+                'discount_percent' => $l['discount_percent'] ?? 0,
+                'gst_rate'         => $rate, // OCR value, else learned/HSN-master rate
+            ];
+        })->values()->all();
 
         // The duplicate-resolution step can pin an explicit party (and branch),
         // overriding the name/GSTIN match above.
@@ -203,6 +225,15 @@ class InvoiceController extends Controller {
             ]));
         }
 
+        // Learn each product's HSN + effective GST rate from this confirmed bill,
+        // so the next scan of the same item auto-fills those fields.
+        foreach ($computedLines as $line) {
+            if (! empty($line['description'])) {
+                $rate = (float) (($line['cgst_rate'] ?? 0) + ($line['sgst_rate'] ?? 0) + ($line['igst_rate'] ?? 0));
+                TenantItem::learn($tenantId, $line['description'], $line['hsn_sac_code'] ?? null, $rate, $line['unit'] ?? null);
+            }
+        }
+
         return redirect()->route('accounting.invoices.show', $invoice)->with('success', 'Invoice created.');
     }
 
@@ -245,6 +276,15 @@ class InvoiceController extends Controller {
         if ($invoice->isLocked()) return back()->with('error', 'Cannot delete a posted invoice.');
         $invoice->delete();
         return redirect()->route('accounting.invoices.index')->with('success', 'Invoice deleted.');
+    }
+
+    /** Total GST rate for an HSN/SAC from the master — exact code, then 4-digit chapter. */
+    private function hsnRate(string $hsn): ?float {
+        $hsn = trim($hsn);
+        if ($hsn === '') return null;
+        $row = HsnSacCode::where('code', $hsn)->first()
+            ?? (strlen($hsn) > 4 ? HsnSacCode::where('code', substr($hsn, 0, 4))->first() : null);
+        return $row ? (float) $row->igst_rate : null;
     }
 
     private function nextNumber(int $tenantId, string $type): string {
