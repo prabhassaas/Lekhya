@@ -64,9 +64,31 @@ class GroqDriver implements AiDriverInterface
 
     private function call(array $content, bool $vision = false): array
     {
+        // For vision, try each candidate model in turn — Groq deprecates vision
+        // models often, so if one is decommissioned we fall through to the next.
+        $models = $vision ? $this->visionModelChain() : [$this->textModel];
+        $last   = ['error' => 'Groq API error'];
+
+        foreach ($models as $model) {
+            $res = $this->callModel($content, $model, $vision);
+            if (! isset($res['error'])) {
+                return $res;
+            }
+            $last = $res;
+            if (empty($res['_retry_next_model'])) {
+                break; // a non-model error (size, key, etc.) — no point trying others
+            }
+        }
+
+        unset($last['_retry_next_model']);
+        return $last;
+    }
+
+    private function callModel(array $content, string $model, bool $vision): array
+    {
         try {
             $body = [
-                'model'       => $vision ? $this->visionModel : $this->textModel,
+                'model'       => $model,
                 'messages'    => [['role' => 'user', 'content' => $content]],
                 'max_tokens'  => $this->maxTokens,
                 'temperature' => (float) config('services.ai.temperature', 0.1),
@@ -82,8 +104,12 @@ class GroqDriver implements AiDriverInterface
                 ->post(self::ENDPOINT, $body);
 
             if (! $response->successful()) {
-                Log::warning('Groq request failed', ['status' => $response->status(), 'body' => $response->body()]);
-                return ['error' => 'Groq API error: ' . $response->status()];
+                $detail = $this->errorDetail($response->json());
+                Log::warning('Groq request failed', ['model' => $model, 'status' => $response->status(), 'body' => $response->body()]);
+                return [
+                    'error'             => 'Groq API error ' . $response->status() . ($detail ? ': ' . $detail : ''),
+                    '_retry_next_model' => $vision && $this->isModelUnavailable($response->status(), $detail),
+                ];
             }
 
             return $this->parseJsonResponse($response->json('choices.0.message.content', ''));
@@ -91,6 +117,48 @@ class GroqDriver implements AiDriverInterface
             Log::error('Groq driver error', ['error' => $e->getMessage()]);
             return ['error' => $e->getMessage()];
         }
+    }
+
+    /** Candidate vision models, env-configured one first, newest fallbacks after. */
+    private function visionModelChain(): array
+    {
+        return array_values(array_unique(array_filter([
+            $this->visionModel,
+            'meta-llama/llama-4-maverick-17b-128e-instruct',
+            'meta-llama/llama-4-scout-17b-16e-instruct',
+        ])));
+    }
+
+    private function errorDetail(mixed $body): ?string
+    {
+        if (is_array($body)) {
+            $err = $body['error'] ?? null;
+            if (is_array($err)) {
+                return $err['message'] ?? ($err['code'] ?? null);
+            }
+            if (is_string($err) && $err !== '') {
+                return $err;
+            }
+            if (! empty($body['message']) && is_string($body['message'])) {
+                return $body['message'];
+            }
+        }
+        return null;
+    }
+
+    /** True when a 400/404 means the model itself is gone — so we try the next. */
+    private function isModelUnavailable(int $status, ?string $detail): bool
+    {
+        if (! in_array($status, [400, 404], true) || ! $detail) {
+            return false;
+        }
+        $d = strtolower($detail);
+        foreach (['decommission', 'deprecat', 'not found', 'does not exist', 'no longer', 'unknown model', 'model_not_found'] as $needle) {
+            if (str_contains($d, $needle)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function parseJsonResponse(string $raw): array

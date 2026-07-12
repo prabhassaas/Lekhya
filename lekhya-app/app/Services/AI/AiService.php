@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Log;
 
 class AiService
 {
+    // Keep the prompt well under Groq's request-size ceiling; a big PDF's text
+    // otherwise returns HTTP 400.
+    private const MAX_PROMPT_CHARS = 24000;
+
     private AiDriverInterface $driver;
 
     public function __construct()
@@ -106,8 +110,10 @@ class AiService
         if ($extension === 'pdf') {
             $text = $this->pdfToText($fullPath);
         } elseif (in_array($extension, ['png', 'jpg', 'jpeg', 'webp'])) {
-            $text        = "Image invoice file: {$file->getClientOriginalName()}";
-            $imageBase64 = base64_encode(file_get_contents($fullPath));
+            $text = "Image invoice file: {$file->getClientOriginalName()}";
+            // Downscale first — a phone photo of a bill easily exceeds Groq's
+            // vision limits (4MB base64 / 33 megapixels) and returns HTTP 400.
+            $imageBase64 = base64_encode($this->downscaleImage($fullPath) ?: (file_get_contents($fullPath) ?: ''));
         } else {
             $text = file_get_contents($fullPath) ?: '';
         }
@@ -118,10 +124,60 @@ class AiService
 
         // Scrub before the call: raw-byte PDF text can carry invalid UTF-8, which
         // makes Guzzle's json_encode of the request body throw "Malformed UTF-8".
-        $text = $this->sanitizeUtf8($text);
+        // Cap the length too — an over-long prompt trips Groq's request-size 400.
+        $text = mb_substr($this->sanitizeUtf8($text), 0, self::MAX_PROMPT_CHARS);
 
         // Scrub the response too, so Eloquent's JSON cast can persist it safely.
         return $this->scrubUtf8($this->driver->extractInvoice($text, $imageBase64));
+    }
+
+    /**
+     * Shrink an uploaded image so its base64 stays under Groq's vision limits
+     * (4MB base64, 33 megapixels). Returns JPEG bytes, or null if GD can't read
+     * it (caller then falls back to the original bytes).
+     */
+    private function downscaleImage(string $path): ?string
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return null;
+        }
+        $raw = @file_get_contents($path);
+        if ($raw === false || $raw === '') {
+            return null;
+        }
+        $img = @imagecreatefromstring($raw);
+        if ($img === false) {
+            return null;
+        }
+
+        // Step down dimensions/quality until the base64 is safely under 4MB.
+        foreach ([[1600, 80], [1100, 70], [800, 65]] as [$dim, $quality]) {
+            $w = imagesx($img);
+            $h = imagesy($img);
+            $scale  = min(1.0, $dim / max($w, $h));
+            $canvas = $img;
+            if ($scale < 1.0) {
+                $scaled = imagescale($img, (int) round($w * $scale), (int) round($h * $scale));
+                if ($scaled !== false) {
+                    $canvas = $scaled;
+                }
+            }
+
+            ob_start();
+            imagejpeg($canvas, null, $quality);
+            $jpeg = (string) ob_get_clean();
+            if ($canvas !== $img) {
+                imagedestroy($canvas);
+            }
+
+            if ($jpeg !== '' && strlen($jpeg) * 4 / 3 < 3_800_000) { // base64 inflates ~33%
+                imagedestroy($img);
+                return $jpeg;
+            }
+        }
+
+        imagedestroy($img);
+        return null;
     }
 
     /**
