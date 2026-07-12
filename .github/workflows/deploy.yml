@@ -54,12 +54,15 @@ jobs:
         env:
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_VISION_MODEL: ${{ secrets.GROQ_VISION_MODEL }}
+          CASHFREE_CLIENT_ID: ${{ secrets.CASHFREE_CLIENT_ID }}
+          CASHFREE_CLIENT_SECRET: ${{ secrets.CASHFREE_CLIENT_SECRET }}
         with:
           host: ${{ secrets.HOSTINGER_SSH_HOST }}
           username: ${{ secrets.HOSTINGER_SSH_USER }}
           password: ${{ secrets.HOSTINGER_SSH_PASS }}
           port: 65002
-          envs: MAIL_PASSWORD,GROQ_API_KEY
+          envs: MAIL_PASSWORD,GROQ_API_KEY,GROQ_VISION_MODEL,CASHFREE_CLIENT_ID,CASHFREE_CLIENT_SECRET
           script: |
             set -e
             cd ~/domains/lekhya.prabhassaas.in/public_html
@@ -134,6 +137,19 @@ jobs:
             # GitHub secret; AI stays on the offline mock until it's set.
             set_env_force AI_DRIVER "groq"
             [ -n "$GROQ_API_KEY" ] && set_env_force GROQ_API_KEY "$GROQ_API_KEY"
+            # Optional override — lets us point at a current Groq vision model
+            # without a code change if the default one gets deprecated.
+            [ -n "$GROQ_VISION_MODEL" ] && set_env_force GROQ_VISION_MODEL "$GROQ_VISION_MODEL"
+
+            # ── GST verification: Cashfree Verification Suite ─────────────
+            # GSTIN lookup/auto-fill. Stays on the offline mock until both
+            # Cashfree credentials are present as GitHub secrets.
+            if [ -n "$CASHFREE_CLIENT_ID" ] && [ -n "$CASHFREE_CLIENT_SECRET" ]; then
+              set_env_force GST_VERIFY_DRIVER "cashfree"
+              set_env_force CASHFREE_ENV "production"
+              set_env_force CASHFREE_CLIENT_ID "$CASHFREE_CLIENT_ID"
+              set_env_force CASHFREE_CLIENT_SECRET "$CASHFREE_CLIENT_SECRET"
+            fi
 
             php artisan config:cache
             php artisan route:clear

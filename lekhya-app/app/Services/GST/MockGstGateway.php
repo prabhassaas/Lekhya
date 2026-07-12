@@ -8,15 +8,26 @@ class MockGstGateway implements GstGateway
 {
     public function validateGstin(string $gstin): array
     {
+        $gstin = strtoupper(trim($gstin));
         $valid = $this->checkGstinFormat($gstin);
+
+        if (! $valid) {
+            return ['valid' => false, 'gstin' => $gstin, 'message' => 'GSTIN format looks invalid', 'provider' => 'mock'];
+        }
+
         return [
-            'valid'           => $valid,
-            'gstin'           => $gstin,
-            'legal_name'      => $valid ? 'MOCK TRADER PVT LTD' : null,
-            'trade_name'      => $valid ? 'Mock Trader' : null,
-            'status'          => $valid ? 'ACT' : 'INVALID',
-            'registration_date' => $valid ? '01/07/2017' : null,
-            'state_code'      => $valid ? substr($gstin, 0, 2) : null,
+            'valid'             => true,
+            'gstin'             => $gstin,
+            'legal_name'        => 'MOCK TRADER PRIVATE LIMITED',
+            'trade_name'        => 'Mock Trader',
+            'status'            => 'Active',
+            'registration_date' => '2017-07-01',
+            'constitution'      => 'Private Limited Company',
+            'taxpayer_type'     => 'Regular',
+            'address'           => '123 Commercial Street, Bengaluru, Karnataka, 560001',
+            'state_code'        => substr($gstin, 0, 2),
+            'pan'               => substr($gstin, 2, 10),
+            'provider'          => 'mock',
         ];
     }
 

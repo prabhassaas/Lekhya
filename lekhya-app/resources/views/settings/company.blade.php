@@ -18,24 +18,32 @@
     @include('settings._nav')
 
     <form method="POST" action="{{ route('settings.company.update') }}"
-          x-data="{ states: {{ \Illuminate\Support\Js::from($states) }}, stateCode: '{{ old('state_code', $tenant->state_code) }}' }"
+          x-data="companyForm({{ \Illuminate\Support\Js::from($states) }}, @js(old('state_code', $tenant->state_code)))"
           class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-5">
         @csrf @method('PUT')
 
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Company Name <span class="text-red-500">*</span></label>
-            <input type="text" name="name" value="{{ old('name', $tenant->name) }}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input type="text" name="name" x-ref="name" value="{{ old('name', $tenant->name) }}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
         </div>
 
         <div class="grid sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
-                <input type="text" name="gstin" value="{{ old('gstin', $tenant->gstin) }}" maxlength="15" placeholder="27ABCDE1234F1Z5" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono uppercase">
-                <p class="text-xs text-gray-400 mt-1">15-character GST identification number.</p>
+                <div class="flex gap-2">
+                    <input type="text" name="gstin" x-ref="gstin" value="{{ old('gstin', $tenant->gstin) }}" maxlength="15" placeholder="27ABCDE1234F1Z5" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono uppercase">
+                    <button type="button" @click="fetchGstin()" :disabled="gstinBusy"
+                            class="px-3 py-2 border border-navy-300 text-navy-700 hover:bg-navy-50 rounded-lg text-sm font-medium whitespace-nowrap disabled:opacity-50">
+                        <i class="fa fa-wand-magic-sparkles mr-1" x-show="!gstinBusy"></i>
+                        <i class="fa fa-spinner fa-spin mr-1" x-show="gstinBusy"></i>Fetch details
+                    </button>
+                </div>
+                <p class="text-xs mt-1" :class="gstinOk ? 'text-green-600' : (gstinMsg ? 'text-red-500' : 'text-gray-400')"
+                   x-text="gstinMsg || '15-character GSTIN — click Fetch to auto-fill from the GST registry.'"></p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">PAN</label>
-                <input type="text" name="pan" value="{{ old('pan', $tenant->pan) }}" maxlength="10" placeholder="ABCDE1234F" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono uppercase">
+                <input type="text" name="pan" x-ref="pan" value="{{ old('pan', $tenant->pan) }}" maxlength="10" placeholder="ABCDE1234F" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono uppercase">
             </div>
         </div>
 
@@ -52,7 +60,7 @@
 
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <textarea name="address" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{{ old('address', $tenant->address) }}</textarea>
+            <textarea name="address" x-ref="address" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{{ old('address', $tenant->address) }}</textarea>
         </div>
 
         <div class="grid sm:grid-cols-3 gap-4">
@@ -82,4 +90,38 @@
         </div>
     </form>
 </div>
+
+@push('scripts')
+<script>
+function companyForm(states, stateCode) {
+  return {
+    states, stateCode: stateCode || '',
+    gstinBusy: false, gstinMsg: '', gstinOk: false,
+    async fetchGstin() {
+      const g = (this.$refs.gstin.value || '').trim().toUpperCase();
+      this.$refs.gstin.value = g;
+      if (g.length !== 15) { this.gstinOk = false; this.gstinMsg = 'Enter a 15-character GSTIN'; return; }
+      this.gstinBusy = true; this.gstinMsg = '';
+      try {
+        const res = await fetch('{{ route('gstin.verify') }}?gstin=' + encodeURIComponent(g));
+        const d = await res.json();
+        if (d.valid) {
+          this.gstinOk = true; this.gstinMsg = '✓ ' + (d.legal_name || 'Verified');
+          if (d.legal_name && !this.$refs.name.value.trim()) this.$refs.name.value = d.legal_name;
+          if (d.pan) this.$refs.pan.value = d.pan;
+          if (d.address && !this.$refs.address.value.trim()) this.$refs.address.value = d.address;
+          if (d.state_code) this.stateCode = String(d.state_code).padStart(2, '0');
+        } else {
+          this.gstinOk = false; this.gstinMsg = d.message || 'Invalid GSTIN — check and try again';
+        }
+      } catch (e) {
+        this.gstinOk = false; this.gstinMsg = 'Could not reach the verification service';
+      } finally {
+        this.gstinBusy = false;
+      }
+    },
+  };
+}
+</script>
+@endpush
 @endsection

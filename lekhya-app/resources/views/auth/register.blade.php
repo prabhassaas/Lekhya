@@ -777,7 +777,7 @@ function registerWizard() {
       this.gstin.loading = true;
       this.gstin.status  = null;
       try {
-        const res  = await fetch('/gst/validate-gstin?gstin=' + encodeURIComponent(raw));
+        const res  = await fetch('{{ route('gstin.verify') }}?gstin=' + encodeURIComponent(raw));
         const data = await res.json();
         if (data.valid) {
           this.gstin.status  = 'valid';

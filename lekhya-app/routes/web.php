@@ -11,6 +11,7 @@ use App\Http\Controllers\Accounting\ReportController;
 use App\Http\Controllers\Accounting\TallyImportController;
 use App\Http\Controllers\Banking\BankReconciliationController;
 use App\Http\Controllers\GST\GstController;
+use App\Http\Controllers\GST\GstinLookupController;
 use App\Http\Controllers\Connector\ConnectorController;
 use App\Http\Controllers\AI\AiAssistantController;
 use App\Http\Controllers\Pramaan\UdinController;
@@ -38,6 +39,10 @@ Route::get('/help', [MarketingController::class, 'help'])->name('marketing.help'
 Route::get('/help/{topic}', [MarketingController::class, 'helpTopic'])->name('marketing.help.topic');
 Route::get('/flows', [MarketingController::class, 'flows'])->name('marketing.flows');
 Route::get('/seedha-bill-connector', [MarketingController::class, 'connectorGuide'])->name('marketing.connector');
+
+// ── Public GSTIN verification (onboarding auto-fill; throttled, read-only)
+Route::get('/gstin/verify', [GstinLookupController::class, 'verify'])
+    ->middleware('throttle:20,1')->name('gstin.verify');
 
 // ── Auth
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');

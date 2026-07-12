@@ -9,6 +9,7 @@ use App\Services\Accounting\TallyMigrationService;
 use App\Services\Connector\ImportPipeline;
 use App\Services\Connector\InvoiceSourceAdapter;
 use App\Services\Connector\SeedhaBillAdapter;
+use App\Services\GST\CashfreeGstGateway;
 use App\Services\GST\GstGateway;
 use App\Services\GST\GstRateEngine;
 use App\Services\GST\MockGstGateway;
@@ -18,12 +19,21 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Bind GST gateway — swap to real GSP class in production
+        // Bind GST gateway. The GSP layer (e-invoice / GSTR filing) is still the
+        // mock until a real GSP is wired. GSTIN verification is real via Cashfree
+        // once its credentials are set — CashfreeGstGateway decorates the GSP
+        // gateway, doing real GSTIN lookups and delegating everything else.
         $this->app->singleton(GstGateway::class, function () {
-            return match (config('services.gst.driver', 'mock')) {
-                'mock'  => new MockGstGateway(),
+            $gsp = match (config('services.gst.driver', 'mock')) {
                 default => new MockGstGateway(), // replace with real GSP class
             };
+
+            $cf = config('services.gst.cashfree');
+            if (config('services.gst.verify_driver') === 'cashfree' && ! empty($cf['client_id']) && ! empty($cf['client_secret'])) {
+                return new CashfreeGstGateway($gsp, (string) $cf['client_id'], (string) $cf['client_secret'], (string) ($cf['env'] ?? 'production'));
+            }
+
+            return $gsp;
         });
 
         $this->app->singleton(GstRateEngine::class);
