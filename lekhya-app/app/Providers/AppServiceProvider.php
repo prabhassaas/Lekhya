@@ -13,6 +13,7 @@ use App\Services\GST\CashfreeGstGateway;
 use App\Services\GST\GstGateway;
 use App\Services\GST\GstRateEngine;
 use App\Services\GST\MockGstGateway;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -64,6 +65,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        // Sidebar active-link highlighting: @active('gst.*') → outputs "active"
+        // when the current route matches any given pattern (wildcards allowed).
+        Blade::directive('active', function ($expression) {
+            return "<?php echo request()->routeIs($expression) ? 'active' : ''; ?>";
+        });
     }
 }

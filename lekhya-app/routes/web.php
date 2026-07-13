@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Accounting\AccountController;
 use App\Http\Controllers\Accounting\InvoiceController;
 use App\Http\Controllers\Accounting\PartyController;
@@ -63,6 +64,10 @@ Route::post('/auth/google/verify', [GoogleAuthController::class, 'verify'])->nam
 Route::middleware(['auth', 'tenant'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Global search
+    Route::get('/search', [SearchController::class, 'index'])->name('search');
+    Route::get('/search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:60,1')->name('search.suggest');
 
     // Accounting
     Route::prefix('accounting')->name('accounting.')->group(function () {

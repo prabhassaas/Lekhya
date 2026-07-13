@@ -74,15 +74,69 @@ class GstController extends Controller {
     }
 
     public function gstr3b(Request $request) {
+        $tenantId = auth()->user()->tenant_id;
         $period = $request->get('period', date('mY'));
-        return view('gst.gstr3b', compact('period'));
+        [$month, $year] = [substr($period, 0, 2), substr($period, 2, 4)];
+
+        $inv = fn(string $type) => Invoice::where('tenant_id', $tenantId)->where('type', $type)
+            ->whereMonth('invoice_date', $month)->whereYear('invoice_date', $year)
+            ->where('status', 'posted');
+
+        $sales     = $inv('sales')->get();
+        $purchases = $inv('purchase')->get();
+        $rcm       = $purchases->where('reverse_charge', true);
+
+        $sum = fn($c, string $f) => (float) $c->sum($f);
+
+        // 3.1(a) — Outward taxable supplies (other than zero-rated / nil / exempt)
+        $outward = [
+            'taxable' => $sum($sales, 'taxable_amount'),
+            'igst' => $sum($sales, 'igst_amount'), 'cgst' => $sum($sales, 'cgst_amount'),
+            'sgst' => $sum($sales, 'sgst_amount'), 'cess' => $sum($sales, 'cess_amount'),
+        ];
+        // 3.1(d) — Inward supplies liable to reverse charge
+        $reverse = [
+            'taxable' => $sum($rcm, 'taxable_amount'),
+            'igst' => $sum($rcm, 'igst_amount'), 'cgst' => $sum($rcm, 'cgst_amount'),
+            'sgst' => $sum($rcm, 'sgst_amount'), 'cess' => $sum($rcm, 'cess_amount'),
+        ];
+        // 4 — Eligible ITC (all posted purchases, incl. RCM which is also creditable)
+        $itc = [
+            'igst' => $sum($purchases, 'igst_amount'), 'cgst' => $sum($purchases, 'cgst_amount'),
+            'sgst' => $sum($purchases, 'sgst_amount'), 'cess' => $sum($purchases, 'cess_amount'),
+        ];
+        // 6.1 — Net tax payable = (outward + RCM) − ITC, floored at 0 per head
+        $net = [];
+        foreach (['igst', 'cgst', 'sgst', 'cess'] as $h) {
+            $net[$h] = max(0, ($outward[$h] + $reverse[$h]) - $itc[$h]);
+        }
+
+        return view('gst.gstr3b', compact('period', 'outward', 'reverse', 'itc', 'net', 'sales', 'purchases'));
     }
 
     public function gstr2b(Request $request) {
         $tenantId = auth()->user()->tenant_id;
         $period = $request->get('period', date('mY'));
-        $reconciliations = Gstr2bReconciliation::where('tenant_id', $tenantId)->where('return_period', $period)->with('invoice.party')->get();
-        return view('gst.gstr2b', compact('period', 'reconciliations'));
+        [$month, $year] = [substr($period, 0, 2), substr($period, 2, 4)];
+
+        // Purchases as per your books for the period (the ITC side)
+        $purchases = Invoice::where('tenant_id', $tenantId)->where('type', 'purchase')
+            ->whereMonth('invoice_date', $month)->whereYear('invoice_date', $year)
+            ->where('status', 'posted')->with('party')->get();
+
+        $latestImport = Gstr2bImport::where('tenant_id', $tenantId)->where('return_period', $period)
+            ->latest('imported_at')->first();
+
+        $reconciliations = Gstr2bReconciliation::where('tenant_id', $tenantId)->where('return_period', $period)
+            ->with('invoice.party')->get();
+
+        $bookItc = [
+            'count' => $purchases->count(),
+            'taxable' => (float) $purchases->sum('taxable_amount'),
+            'tax' => (float) ($purchases->sum('cgst_amount') + $purchases->sum('sgst_amount') + $purchases->sum('igst_amount')),
+        ];
+
+        return view('gst.gstr2b', compact('period', 'purchases', 'latestImport', 'reconciliations', 'bookItc'));
     }
 
     public function importGstr2b(Request $request) {

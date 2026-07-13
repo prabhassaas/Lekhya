@@ -49,7 +49,7 @@
         @endif
 
         {{-- Navigation --}}
-        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <nav id="sidebar-nav" class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
             <a href="{{ route('dashboard') }}" class="nav-link @active('dashboard')">
                 <i class="fa fa-gauge-high w-5"></i> <span>Dashboard</span>
             </a>
@@ -95,16 +95,16 @@
             <div class="pt-3 pb-1">
                 <p class="px-2 text-xs font-semibold text-navy-300 uppercase tracking-wider">GST</p>
             </div>
-            <a href="{{ route('gst.dashboard') }}" class="nav-link @active('gst.*')">
+            <a href="{{ route('gst.dashboard') }}" class="nav-link @active('gst.dashboard') @active('gst.validate') @active('gst.einvoice*')">
                 <i class="fa fa-landmark w-5"></i> <span>GST Dashboard</span>
             </a>
-            <a href="{{ route('gst.gstr1') }}" class="nav-link">
+            <a href="{{ route('gst.gstr1') }}" class="nav-link @active('gst.gstr1*')">
                 <i class="fa fa-file-text w-5"></i> <span>GSTR-1</span>
             </a>
-            <a href="{{ route('gst.gstr3b') }}" class="nav-link">
+            <a href="{{ route('gst.gstr3b') }}" class="nav-link @active('gst.gstr3b')">
                 <i class="fa fa-file-text w-5"></i> <span>GSTR-3B</span>
             </a>
-            <a href="{{ route('gst.gstr2b') }}" class="nav-link">
+            <a href="{{ route('gst.gstr2b') }}" class="nav-link @active('gst.gstr2b*')">
                 <i class="fa fa-arrows-rotate w-5"></i> <span>GSTR-2B Recon</span>
             </a>
 
@@ -207,16 +207,79 @@
     {{-- Main content --}}
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
         {{-- Top bar --}}
-        <header class="h-16 bg-white border-b border-gray-200 flex items-center px-4 lg:px-6 space-x-4">
-            <button @click="sidebarOpen=true" class="lg:hidden text-gray-500 hover:text-gray-700">
+        <header class="h-16 bg-white border-b border-gray-200 flex items-center gap-3 px-4 lg:px-6">
+            <button @click="sidebarOpen=true" class="lg:hidden text-gray-500 hover:text-gray-700 shrink-0">
                 <i class="fa fa-bars text-xl"></i>
             </button>
-            <div class="flex-1">
-                <h1 class="text-lg font-semibold text-gray-900">@yield('page-title', 'Dashboard')</h1>
+            <h1 class="text-lg font-semibold text-gray-900 truncate shrink-0 hidden md:block">@yield('page-title', 'Dashboard')</h1>
+
+            {{-- Global search --}}
+            <div class="flex-1 max-w-xl mx-auto relative" x-data="globalSearch" @click.outside="open=false" @keydown.escape="open=false">
+                <form @submit.prevent="go()" role="search">
+                    <div class="relative">
+                        <i class="fa fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <input type="text" x-model="q" x-ref="input"
+                               @input.debounce.250ms="fetchSuggest()" @focus="if(hasResults())open=true"
+                               @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
+                               placeholder="Search invoice #, GSTIN, client, phone…"
+                               autocomplete="off"
+                               class="w-full pl-9 pr-16 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-navy-400 focus:ring-1 focus:ring-navy-200 outline-none">
+                        <kbd class="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-0.5 text-[10px] text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-white">Ctrl K</kbd>
+                    </div>
+                </form>
+
+                {{-- Suggestions dropdown --}}
+                <div x-show="open" x-cloak x-transition.origin.top
+                     class="absolute z-50 mt-1.5 w-full bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden max-h-[70vh] overflow-y-auto">
+                    <template x-if="loading">
+                        <div class="px-4 py-6 text-center text-sm text-gray-400"><i class="fa fa-circle-notch fa-spin mr-2"></i>Searching…</div>
+                    </template>
+                    <template x-if="!loading && !hasResults() && q.trim().length >= 2">
+                        <div class="px-4 py-6 text-center text-sm text-gray-400">No matches for “<span x-text="q.trim()"></span>”.</div>
+                    </template>
+
+                    <template x-if="!loading && results.invoices.length">
+                        <div>
+                            <p class="px-4 pt-3 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Invoices &amp; Bills</p>
+                            <template x-for="(r, i) in results.invoices" :key="'inv'+i">
+                                <a :href="r.url" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+                                    <span class="w-8 h-8 rounded-lg bg-navy-50 text-navy-600 flex items-center justify-center shrink-0"><i class="fa fa-file-invoice text-xs"></i></span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-medium text-gray-900 truncate" x-text="r.number"></span>
+                                        <span class="block text-xs text-gray-400 truncate" x-text="r.sub"></span>
+                                    </span>
+                                    <span class="text-sm font-medium text-gray-700 shrink-0" x-text="r.amount"></span>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="!loading && results.parties.length">
+                        <div>
+                            <p class="px-4 pt-3 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Vendors &amp; Customers</p>
+                            <template x-for="(r, i) in results.parties" :key="'party'+i">
+                                <a :href="r.url" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+                                    <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                          :class="r.type==='customer' ? 'bg-teal-50 text-teal-600' : 'bg-amber-50 text-amber-600'"><i class="fa fa-user text-xs"></i></span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-medium text-gray-900 truncate" x-text="r.name"></span>
+                                        <span class="block text-xs text-gray-400 truncate font-mono" x-text="r.sub"></span>
+                                    </span>
+                                    <span class="text-[10px] uppercase tracking-wide text-gray-400 shrink-0" x-text="r.type"></span>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="!loading && hasResults()">
+                        <a :href="allUrl()" class="block px-4 py-2.5 text-center text-xs font-medium text-navy-600 hover:bg-gray-50 border-t border-gray-100">
+                            See all results for “<span x-text="q.trim()"></span>”
+                        </a>
+                    </template>
+                </div>
             </div>
-            <div class="flex items-center space-x-3">
-                <span class="hidden sm:block text-sm text-gray-500">{{ now()->format('d M Y') }}</span>
-            </div>
+
+            <span class="hidden lg:block text-sm text-gray-500 shrink-0">{{ now()->format('d M Y') }}</span>
         </header>
 
         {{-- Impersonation banner --}}
@@ -293,6 +356,16 @@
 
 <script>
 (function() {
+  // ── Sidebar scroll persistence (keep menu position across page loads) ──
+  var navEl = document.getElementById('sidebar-nav');
+  if (navEl) {
+    var savedScroll = sessionStorage.getItem('lekhya_nav_scroll');
+    if (savedScroll !== null) navEl.scrollTop = parseInt(savedScroll, 10) || 0;
+    navEl.addEventListener('scroll', function() {
+      sessionStorage.setItem('lekhya_nav_scroll', navEl.scrollTop);
+    }, { passive: true });
+  }
+
   var splash = document.getElementById('lekhya-splash');
   var bar    = document.getElementById('splash-bar');
   var shown  = sessionStorage.getItem('lekhya_splash_shown');
@@ -350,6 +423,49 @@
   window.addEventListener('pageshow', function() { finishProgress(); });
 })();
 </script>
+
+{{-- ── Global search component ───────────────────────────────────── --}}
+<script>
+document.addEventListener('alpine:init', function () {
+  Alpine.data('globalSearch', function () {
+    return {
+      q: '', open: false, loading: false,
+      results: { parties: [], invoices: [] },
+      hasResults() { return this.results.parties.length > 0 || this.results.invoices.length > 0; },
+      fetchSuggest() {
+        var term = this.q.trim();
+        if (term.length < 2) { this.results = { parties: [], invoices: [] }; this.open = false; return; }
+        this.loading = true; this.open = true;
+        fetch(@js(route('search.suggest')) + '?q=' + encodeURIComponent(term), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+          .then(function (r) { return r.json(); })
+          .then((d) => { this.results = { parties: d.parties || [], invoices: d.invoices || [] }; this.loading = false; })
+          .catch(() => { this.loading = false; });
+      },
+      go() { var t = this.q.trim(); if (t.length) window.location = this.allUrl(); },
+      allUrl() { return @js(route('search')) + '?q=' + encodeURIComponent(this.q.trim()); },
+      move(dir) {
+        var links = Array.from(this.$el.querySelectorAll('a[href]'));
+        if (!links.length) return;
+        var idx = links.indexOf(document.activeElement);
+        var next = idx + dir;
+        if (next < 0) { this.$refs.input.focus(); return; }
+        if (next >= links.length) next = links.length - 1;
+        links[next].focus();
+      },
+      init() {
+        var self = this;
+        window.addEventListener('keydown', function (e) {
+          if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault(); self.$refs.input.focus(); self.$refs.input.select();
+          }
+        });
+      },
+    };
+  });
+});
+</script>
+
+@include('partials.calculator')
 
 @stack('scripts')
 </body>
