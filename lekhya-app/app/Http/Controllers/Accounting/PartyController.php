@@ -2,8 +2,10 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiUsage;
 use App\Models\Invoice;
 use App\Models\Party;
+use App\Services\AI\AiService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -31,6 +33,78 @@ class PartyController extends Controller
         ];
 
         return view('accounting.parties.index', compact('parties', 'tab', 'search', 'balances', 'counts'));
+    }
+
+    /** Quick-create a party inline (from the invoice form) — returns JSON. */
+    public function quickStore(Request $request)
+    {
+        $data = $request->validate([
+            'name'           => 'required|string|max:255',
+            'type'           => 'required|in:vendor,customer,both',
+            'gstin'          => 'nullable|string|max:15',
+            'phone'          => 'nullable|string|max:15',
+            'email'          => 'nullable|email|max:255',
+            'classification' => 'nullable|in:customer,vendor,supplier,service_provider',
+        ]);
+        $gstin = $data['gstin'] ? strtoupper(trim($data['gstin'])) : null;
+
+        $party = Party::create([
+            'tenant_id'      => auth()->user()->tenant_id,
+            'type'           => $data['type'],
+            'classification' => $data['classification'] ?? null,
+            'name'           => $data['name'],
+            'gstin'          => $gstin,
+            'phone'          => $data['phone'] ?? null,
+            'email'          => $data['email'] ?? null,
+            'state_code'     => ($gstin && strlen($gstin) >= 2) ? substr($gstin, 0, 2) : null,
+            'is_active'      => true,
+        ]);
+
+        return response()->json(['id' => $party->id, 'name' => $party->name, 'gstin' => $party->gstin]);
+    }
+
+    /** Read address/bank details from an uploaded image; returns proposed fields for the user to approve. */
+    public function extractDetails(Request $request, AiService $ai, Party $party)
+    {
+        abort_if($party->tenant_id !== auth()->user()->tenant_id, 403);
+        $request->validate(['file' => 'required|file|mimes:pdf,png,jpg,jpeg|max:10240']);
+
+        $tenant = auth()->user()->tenant;
+        if ($tenant?->aiCreditsExhausted()) {
+            return response()->json(['error' => "Monthly AI credits used up — upgrade your plan for more."], 429);
+        }
+
+        $ex = $ai->extractFromFile($request->file('file'));
+        if (isset($ex['error'])) {
+            return response()->json(['error' => 'Could not read the image. Try a clearer, well-lit photo.'], 422);
+        }
+
+        AiUsage::create(['tenant_id' => $tenant->id, 'user_id' => auth()->id(), 'type' => 'party_details', 'driver' => $ai->getDriverName(), 'billable' => true]);
+
+        // A letterhead / visiting card reads like a seller block.
+        $val = fn ($k) => ($v = trim((string) ($ex["seller_$k"] ?? ''))) !== '' ? $v : null;
+        $gstin = strtoupper((string) ($val('gstin') ?? ''));
+        $gstin = strlen($gstin) === 15 ? $gstin : null;
+        $pan   = strtoupper((string) ($val('pan') ?? ''));
+        $ifsc  = strtoupper(preg_replace('/[^0-9A-Za-z]/', '', (string) ($ex['seller_bank_ifsc'] ?? '')));
+        $acct  = preg_replace('/[^0-9A-Za-z]/', '', (string) ($ex['seller_bank_account'] ?? ''));
+
+        $fields = array_filter([
+            'name'                => $val('name'),
+            'gstin'               => $gstin,
+            'pan'                 => strlen($pan) === 10 ? $pan : null,
+            'address'             => $val('address'),
+            'email'               => $val('email'),
+            'phone'               => $val('phone'),
+            'state_code'          => $gstin ? substr($gstin, 0, 2) : null,
+            'bank_name'           => trim((string) ($ex['seller_bank_name'] ?? '')) ?: null,
+            'bank_account_number' => $acct ?: null,
+            'bank_ifsc'           => preg_match('/^[A-Z]{4}0[A-Z0-9]{6}$/', $ifsc) ? $ifsc : null,
+            'bank_account_holder' => trim((string) ($ex['seller_account_holder'] ?? '')) ?: null,
+            'upi_id'              => trim((string) ($ex['seller_upi'] ?? '')) ?: null,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        return response()->json(['fields' => $fields]);
     }
 
     public function show(Party $party)

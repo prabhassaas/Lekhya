@@ -19,7 +19,58 @@
         <i class="fa fa-arrow-left mr-1.5"></i>Back
     </a>
 
-    <form method="POST" action="{{ route('accounting.parties.update', $party) }}"
+    {{-- Fill from an image (address / bank details) --}}
+    <div class="mb-4 bg-white rounded-xl border border-gray-100 shadow-sm p-4" x-data="{
+        busy: false, error: '', fields: null,
+        extract(e) {
+            let f = e.target.files[0]; if (!f) return;
+            this.busy = true; this.error = ''; this.fields = null;
+            let fd = new FormData(); fd.append('file', f);
+            fetch(@js(route('accounting.parties.extract', $party)), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                body: fd
+            }).then(r => r.json().then(j => ({ ok: r.ok, j })))
+              .then(({ ok, j }) => { this.busy = false; if (!ok) { this.error = j.error || 'Could not read the image.'; return; } this.fields = j.fields; if (!Object.keys(j.fields).length) this.error = 'No details found in the image.'; })
+              .catch(() => { this.busy = false; this.error = 'Upload failed. Try again.'; });
+        },
+        apply() {
+            Object.entries(this.fields).forEach(([k, v]) => {
+                let el = document.querySelector('#partyForm [name=&quot;' + k + '&quot;]');
+                if (el) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
+            });
+            this.fields = null;
+        },
+        label(k) { return k.replace(/_/g, ' '); }
+    }">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+            <i class="fa fa-wand-magic-sparkles text-navy-500"></i>
+            <h3 class="text-sm font-semibold text-gray-800">Fill from an image</h3>
+            <span class="text-xs text-gray-400">upload a visiting card / letterhead — AI reads address &amp; bank details</span>
+        </div>
+        <label class="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+            <i class="fa fa-upload"></i><span x-text="busy ? 'Reading…' : 'Choose image / PDF'"></span>
+            <input type="file" accept=".pdf,.png,.jpg,.jpeg" class="hidden" @change="extract($event)" :disabled="busy">
+        </label>
+        <p x-show="error" x-cloak class="text-xs text-red-600 mt-2" x-text="error"></p>
+        <template x-if="fields">
+            <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="text-xs font-medium text-gray-600 mb-2">Found these — review, then apply:</p>
+                <div class="space-y-1 text-sm">
+                    <template x-for="(v, k) in fields" :key="k">
+                        <div class="flex gap-2"><span class="text-gray-400 w-32 capitalize shrink-0" x-text="label(k)"></span><span class="text-gray-800 font-medium break-all" x-text="v"></span></div>
+                    </template>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button type="button" @click="apply()" class="px-3 py-1.5 bg-navy-600 hover:bg-navy-700 text-white text-xs font-medium rounded-lg"><i class="fa fa-check mr-1"></i>Apply to form</button>
+                    <button type="button" @click="fields = null" class="text-xs text-gray-500 hover:text-gray-700">Discard</button>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-2">Applying fills the fields below — review and click <strong>Save Changes</strong> to confirm.</p>
+            </div>
+        </template>
+    </div>
+
+    <form id="partyForm" method="POST" action="{{ route('accounting.parties.update', $party) }}"
           x-data="{ states: {{ \Illuminate\Support\Js::from($states) }}, stateCode: '{{ old('state_code', $party->state_code) }}' }"
           class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-5">
         @csrf @method('PUT')

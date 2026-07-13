@@ -85,6 +85,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
         // Parties (vendors & customers) — export must precede the {party} route.
         Route::get('parties', [PartyController::class, 'index'])->name('parties.index');
+        Route::post('parties/quick', [PartyController::class, 'quickStore'])->name('parties.quick');
+        Route::post('parties/{party}/extract', [PartyController::class, 'extractDetails'])->name('parties.extract');
         Route::get('parties/export', [PartyController::class, 'export'])->name('parties.export');
         Route::get('parties/{party}/edit', [PartyController::class, 'edit'])->name('parties.edit');
         Route::get('parties/{party}', [PartyController::class, 'show'])->name('parties.show');
@@ -150,6 +152,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // AI Assistant
     Route::prefix('ai')->name('ai.')->group(function () {
         Route::get('/', [AiAssistantController::class, 'index'])->name('index');
+        Route::get('credits', [AiAssistantController::class, 'credits'])->name('credits');
         Route::post('extract', [AiAssistantController::class, 'extractInvoice'])->name('extract');
         Route::post('query', [AiAssistantController::class, 'naturalLanguageQuery'])->name('query');
         Route::post('suggest-account', [AiAssistantController::class, 'suggestAccount'])->name('suggest-account');

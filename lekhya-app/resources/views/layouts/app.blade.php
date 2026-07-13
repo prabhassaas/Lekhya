@@ -282,6 +282,29 @@
                 </div>
             </div>
 
+            {{-- AI credits pie --}}
+            @php
+                $__t = auth()->user()->tenant;
+                $__used = $__t?->aiCreditsUsed() ?? 0;
+                $__unl = $__t?->aiCreditsUnlimited() ?? false;
+                $__lim = $__unl ? 0 : ($__t?->aiCreditLimit() ?? 0);
+                $__pct = $__lim > 0 ? min(100, round($__used / $__lim * 100)) : 0;
+                $__c = 2 * M_PI * 10; $__d = $__c * $__pct / 100;
+                $__ring = $__pct >= 90 ? '#dc2626' : ($__pct >= 70 ? '#f59e0b' : '#4ade80');
+            @endphp
+            <a href="{{ route('ai.credits') }}" title="AI credits used — click for history"
+               class="hidden sm:flex items-center gap-1.5 shrink-0 text-gray-600 hover:text-navy-700">
+                @if($__unl)
+                    <i class="fa fa-infinity text-navy-500"></i><span class="text-xs font-medium hidden md:inline">Credits</span>
+                @else
+                    <svg viewBox="0 0 24 24" class="w-6 h-6 -rotate-90">
+                        <circle cx="12" cy="12" r="10" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+                        <circle cx="12" cy="12" r="10" fill="none" stroke="{{ $__ring }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ $__d }} {{ $__c }}"/>
+                    </svg>
+                    <span class="text-xs font-medium">{{ $__used }}<span class="text-gray-400">/{{ $__lim }}</span></span>
+                @endif
+            </a>
+
             <span class="hidden lg:block text-sm text-gray-500 shrink-0">{{ now()->format('d M Y') }}</span>
         </header>
 

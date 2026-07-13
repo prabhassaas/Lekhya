@@ -34,6 +34,28 @@ class AiAssistantController extends Controller
         return view('ai.index', compact('pending', 'history', 'driverName', 'aiOnline', 'aiCredits'));
     }
 
+    /** Credit consumption dashboard — usage pie + line-by-line history. */
+    public function credits()
+    {
+        $tenant    = auth()->user()->tenant;
+        $tenantId  = $tenant->id;
+        $aiCredits = [
+            'used'      => $tenant->aiCreditsUsed(),
+            'limit'     => $tenant->aiCreditLimit(),
+            'remaining' => $tenant->aiCreditsRemaining(),
+            'unlimited' => $tenant->aiCreditsUnlimited(),
+        ];
+
+        $usage  = AiUsage::where('tenant_id', $tenantId)->where('billable', true)
+            ->with('tenant')->latest()->paginate(30);
+
+        $byType = AiUsage::where('tenant_id', $tenantId)->where('billable', true)
+            ->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)
+            ->selectRaw('type, count(*) as c')->groupBy('type')->pluck('c', 'type');
+
+        return view('ai.credits', compact('aiCredits', 'usage', 'byType'));
+    }
+
     /** True when the tenant has used up its monthly AI allowance. */
     private function creditsExhausted(): bool
     {

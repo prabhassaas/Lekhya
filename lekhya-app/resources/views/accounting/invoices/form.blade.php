@@ -55,6 +55,26 @@
         partyStates: {{ $partyStates->toJson() }},
         hsnRates: {{ $hsnRates->toJson() }},
         partyId: '{{ $prefill['party_id'] ?? '' }}',
+        showAddParty: false, savingParty: false,
+        newParty: { name: '', gstin: '', phone: '' },
+        quickPartyType: '{{ ($type ?? 'sales') === 'sales' ? 'customer' : 'vendor' }}',
+        addParty() {
+            if (!this.newParty.name.trim()) return;
+            this.savingParty = true;
+            fetch(@js(route('accounting.parties.quick')), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                body: JSON.stringify({ name: this.newParty.name, gstin: this.newParty.gstin, phone: this.newParty.phone, type: this.quickPartyType })
+            }).then(r => r.ok ? r.json() : Promise.reject())
+              .then(d => {
+                let opt = document.createElement('option');
+                opt.value = d.id; opt.textContent = d.name + (d.gstin ? ' — ' + d.gstin : '');
+                this.$refs.partySelect.appendChild(opt);
+                this.partyId = String(d.id);
+                this.showAddParty = false; this.savingParty = false;
+                this.newParty = { name: '', gstin: '', phone: '' };
+              }).catch(() => { this.savingParty = false; alert('Could not add the party. Check the details and try again.'); });
+        },
         priceIncl: {{ ($prefill['gst_inclusive'] ?? false) ? 'true' : 'false' }},
         lines: {{ json_encode($initLines) }},
         products: {{ $productMap->toJson() }},
@@ -118,12 +138,32 @@
             <div class="grid grid-cols-2 gap-4 mb-5">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ ($type ?? 'sales') === 'sales' ? 'Customer' : 'Vendor' }} <span class="text-red-500">*</span></label>
-                    <select name="party_id" x-model="partyId" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        <option value="">Select party…</option>
-                        @foreach($parties ?? [] as $p)
-                        <option value="{{ $p->id }}">{{ $p->name }}{{ $p->gstin ? ' — ' . $p->gstin : '' }}</option>
-                        @endforeach
-                    </select>
+                    <div class="flex gap-2">
+                        <select x-ref="partySelect" name="party_id" x-model="partyId" required class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="">Select party…</option>
+                            @foreach($parties ?? [] as $p)
+                            <option value="{{ $p->id }}">{{ $p->name }}{{ $p->gstin ? ' — ' . $p->gstin : '' }}</option>
+                            @endforeach
+                        </select>
+                        <button type="button" @click="showAddParty = !showAddParty" title="Add a new {{ ($type ?? 'sales') === 'sales' ? 'customer' : 'vendor' }}"
+                                class="shrink-0 px-3 rounded-lg border border-gray-300 text-navy-600 hover:bg-navy-50"><i class="fa fa-plus"></i></button>
+                    </div>
+                    {{-- Inline quick-add --}}
+                    <div x-show="showAddParty" x-cloak x-transition class="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                        <input type="text" x-model="newParty.name" @keydown.enter.prevent="addParty()" placeholder="Name *" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" x-model="newParty.gstin" placeholder="GSTIN (optional)" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm font-mono uppercase">
+                            <input type="text" x-model="newParty.phone" placeholder="Phone (optional)" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="addParty()" :disabled="savingParty || !newParty.name.trim()"
+                                    class="px-3 py-1.5 bg-navy-600 hover:bg-navy-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg">
+                                <span x-show="!savingParty"><i class="fa fa-check mr-1"></i>Add &amp; select</span>
+                                <span x-show="savingParty" x-cloak><i class="fa fa-circle-notch fa-spin mr-1"></i>Saving…</span>
+                            </button>
+                            <button type="button" @click="showAddParty = false" class="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                        </div>
+                    </div>
                     @if($prefill['party_branch_id'] ?? null)
                     <input type="hidden" name="party_branch_id" value="{{ $prefill['party_branch_id'] }}">
                     <p class="text-xs text-navy-600 mt-1"><i class="fa fa-code-branch mr-1"></i>Booked to branch: <strong>{{ $prefill['branch_label'] ?: 'Branch' }}</strong>{{ ($prefill['branch_gstin'] ?? null) ? ' · '.$prefill['branch_gstin'] : '' }}</p>

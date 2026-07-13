@@ -12,7 +12,7 @@
     {{-- Calculator panel --}}
     <div x-show="open" x-ref="panel" x-transition
          :style="panelStyle()"
-         style="position:fixed;right:20px;bottom:20px;z-index:9001;width:320px"
+         style="position:fixed;right:20px;bottom:20px;z-index:9001;width:224px"
          class="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden select-none">
 
         {{-- Draggable header --}}
@@ -41,7 +41,7 @@
             <input type="text" x-model="expr" x-ref="disp" inputmode="text" spellcheck="false" autocomplete="off"
                    @keydown.enter.prevent="equals()" @keydown.escape.prevent="open=false"
                    placeholder="0"
-                   class="w-full bg-transparent text-right text-2xl font-mono text-gray-900 outline-none placeholder-gray-300">
+                   class="w-full bg-transparent text-right text-xl font-mono text-gray-900 outline-none placeholder-gray-300">
             <div class="text-right text-sm text-gray-400 font-mono h-5 truncate" x-text="expr.trim() && preview()!=='' ? '= '+preview() : ''"></div>
         </div>
 
@@ -102,10 +102,10 @@
 </div>
 
 <style>
-    .calc-key { padding:0.7rem 0; background:#fff; font-size:1.05rem; color:#111827; transition:background .1s; }
+    .calc-key { padding:0.5rem 0; background:#fff; font-size:0.95rem; color:#111827; transition:background .1s; }
     .calc-key:hover { background:#f3f4f6; }
     .calc-key:active { background:#e5e7eb; }
-    .calc-sci { padding:0.5rem 0; font-size:0.8rem; transition:background .1s; }
+    .calc-sci { padding:0.38rem 0; font-size:0.68rem; transition:background .1s; }
     .calc-sci:hover { filter:brightness(0.96); }
 </style>
 
