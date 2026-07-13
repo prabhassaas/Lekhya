@@ -77,6 +77,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::resource('invoices', InvoiceController::class);
         Route::post('invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post');
         Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+        Route::get('invoices/{invoice}/original', [InvoiceController::class, 'original'])->name('invoices.original');
 
         // Inventory / products (HSN auto-mapped)
         Route::get('hsn-lookup', [ProductController::class, 'hsnLookup'])->name('hsn.lookup');

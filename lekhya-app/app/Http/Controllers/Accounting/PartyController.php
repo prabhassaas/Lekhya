@@ -58,6 +58,9 @@ class PartyController extends Controller
         $data = $request->validate([
             'name'       => 'required|string|max:255',
             'type'       => 'required|in:vendor,customer,both',
+            'classification' => 'nullable|in:customer,vendor,supplier,service_provider',
+            'tds_rate'   => 'nullable|numeric|min:0|max:100',
+            'tds_section' => 'nullable|string|max:20',
             'gstin'      => 'nullable|string|size:15',
             'pan'        => 'nullable|string|size:10',
             'email'      => 'nullable|email|max:255',

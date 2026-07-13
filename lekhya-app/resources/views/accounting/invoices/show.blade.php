@@ -17,6 +17,12 @@
                 <i class="fa fa-file-lines mr-1"></i>{{ $invoice->documentLabel() }}
             </span>
             @if($invoice->irn)<span class="text-xs px-2.5 py-1 rounded-full font-medium bg-navy-50 text-navy-700"><i class="fa fa-qrcode mr-1"></i>e-Invoice generated</span>@endif
+            @if($invoice->originalFilePath())
+            <a href="{{ route('accounting.invoices.original', $invoice) }}" target="_blank" rel="noopener"
+               class="text-xs px-2.5 py-1 rounded-full font-medium bg-blue-50 text-blue-700 hover:bg-blue-100" title="View the original scanned invoice">
+                <i class="fa fa-image mr-1"></i>Original
+            </a>
+            @endif
         </div>
         <div class="flex gap-2">
             @if($invoice->status === 'draft')
@@ -51,7 +57,13 @@
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 grid grid-cols-2 gap-6">
         <div>
             <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">{{ $invoice->type === 'sales' ? 'Customer' : 'Vendor' }}</p>
-            <p class="font-semibold text-gray-900">{{ $invoice->party->name ?? '—' }}</p>
+            <div class="flex items-center gap-2 flex-wrap">
+                <p class="font-semibold text-gray-900">{{ $invoice->party->name ?? '—' }}</p>
+                @if($invoice->party)
+                @php $pc = $invoice->party->classificationColor(); @endphp
+                <span class="text-[11px] px-2 py-0.5 rounded-full font-medium bg-{{ $pc }}-100 text-{{ $pc }}-700">{{ $invoice->party->classificationLabel() }}</span>
+                @endif
+            </div>
             @if($invoice->party?->gstin)<p class="text-sm text-gray-500 font-mono">{{ $invoice->party->gstin }}</p>@endif
             @if($invoice->party?->address)<p class="text-sm text-gray-500">{{ $invoice->party->address }}, {{ $invoice->party->city }}</p>@endif
         </div>
@@ -77,7 +89,14 @@
             <tbody class="divide-y divide-gray-50">
                 @foreach($invoice->lines as $line)
                 <tr>
-                    <td class="px-5 py-3 text-gray-900">{{ $line->description }}</td>
+                    <td class="px-5 py-3 text-gray-900">
+                        {{ $line->description }}
+                        @if(!empty($line->meta))
+                        <span class="block text-[11px] text-gray-400 mt-0.5">
+                            @foreach($line->meta as $k => $v)@if($v !== null && $v !== ''){{ ucwords(str_replace('_',' ',$k)) }}: {{ $v }}@if(!$loop->last)  ·  @endif @endif @endforeach
+                        </span>
+                        @endif
+                    </td>
                     <td class="px-5 py-3 text-gray-400 font-mono text-xs">{{ $line->hsn_sac_code ?: '—' }}</td>
                     <td class="px-5 py-3 text-right text-gray-500">{{ rtrim(rtrim(number_format($line->quantity, 3), '0'), '.') }}</td>
                     <td class="px-5 py-3 text-right text-gray-500">₹{{ number_format($line->rate, 2) }}</td>
@@ -99,6 +118,13 @@
                 <div class="flex justify-between text-gray-500"><span>IGST</span><span>₹{{ number_format($invoice->igst_amount, 2) }}</span></div>
                 @endif
                 <div class="flex justify-between font-semibold text-gray-900 text-base pt-1.5 border-t border-gray-200"><span>Total</span><span>₹{{ number_format($invoice->total_amount, 2) }}</span></div>
+                @if($invoice->price_includes_gst)
+                <div class="text-[11px] text-gray-400 text-right">Prices were GST-inclusive — tax shown is backed out of the amount.</div>
+                @endif
+                @if($invoice->tds_amount > 0)
+                <div class="flex justify-between text-indigo-600 pt-1 border-t border-gray-100"><span>Less: TDS @ {{ rtrim(rtrim(number_format($invoice->tds_rate, 2), '0'), '.') }}%</span><span>− ₹{{ number_format($invoice->tds_amount, 2) }}</span></div>
+                <div class="flex justify-between font-medium text-gray-900"><span>Net payable</span><span>₹{{ number_format($invoice->total_amount - $invoice->tds_amount, 2) }}</span></div>
+                @endif
                 @if($invoice->balance_amount > 0 && $invoice->balance_amount != $invoice->total_amount)
                 <div class="flex justify-between text-orange-600"><span>Balance Due</span><span>₹{{ number_format($invoice->balance_amount, 2) }}</span></div>
                 @endif

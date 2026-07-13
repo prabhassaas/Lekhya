@@ -56,6 +56,15 @@ class VendorResolver
         $party['direction']  = $direction;
         $party['party_type'] = $direction === 'sales' ? 'customer' : 'vendor';
 
+        // AI-detected role for the badge: a customer when we sold to them, else
+        // the seller_type the model reported (vendor / supplier / service_provider).
+        if ($direction === 'sales') {
+            $party['classification'] = 'customer';
+        } else {
+            $sellerType = strtolower(trim((string) ($ex['seller_type'] ?? '')));
+            $party['classification'] = in_array($sellerType, ['vendor', 'supplier', 'service_provider'], true) ? $sellerType : 'vendor';
+        }
+
         return $party;
     }
 

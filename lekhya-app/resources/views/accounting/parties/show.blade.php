@@ -30,10 +30,13 @@
             <div>
                 <div class="flex items-center gap-2">
                     <h2 class="text-xl font-bold text-gray-900">{{ $party->name }}</h2>
-                    <span class="text-xs px-2 py-0.5 rounded-full font-medium
-                        {{ $party->type === 'vendor' ? 'bg-amber-100 text-amber-700' : ($party->type === 'customer' ? 'bg-teal-100 text-teal-700' : 'bg-purple-100 text-purple-700') }}">
-                        {{ ucfirst($party->type) }}
+                    @php $pc = $party->classificationColor(); @endphp
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-{{ $pc }}-100 text-{{ $pc }}-700">
+                        {{ $party->classificationLabel() }}
                     </span>
+                    @if($party->tds_rate)
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700">TDS {{ rtrim(rtrim(number_format($party->tds_rate,2),'0'),'.') }}%@if($party->tds_section) · {{ $party->tds_section }}@endif</span>
+                    @endif
                 </div>
                 <dl class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-2 text-sm">
                     <div class="flex gap-2"><dt class="text-gray-400 w-20">GSTIN</dt><dd class="font-mono text-gray-700">{{ $party->gstin ?: '—' }}</dd></div>

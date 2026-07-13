@@ -43,6 +43,27 @@
             </div>
         </div>
 
+        {{-- Classification (AI-detected role) + TDS --}}
+        <div class="grid sm:grid-cols-3 gap-4" x-data="{ cls: '{{ old('classification', $party->classification) }}' }">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Classification</label>
+                <select name="classification" x-model="cls" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">— Not set —</option>
+                    @foreach(\App\Models\Party::CLASSIFICATIONS as $val => $meta)
+                    <option value="{{ $val }}" @selected(old('classification', $party->classification) === $val)>{{ $meta[0] }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">TDS rate % <span class="text-gray-400 font-normal">(services)</span></label>
+                <input type="number" step="0.01" min="0" max="100" name="tds_rate" value="{{ old('tds_rate', $party->tds_rate) }}" placeholder="e.g. 2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">TDS section</label>
+                <input type="text" name="tds_section" value="{{ old('tds_section', $party->tds_section) }}" placeholder="194C, 194J…" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+        </div>
+
         <div class="grid sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>

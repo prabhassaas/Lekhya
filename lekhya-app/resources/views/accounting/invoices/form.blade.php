@@ -55,6 +55,7 @@
         partyStates: {{ $partyStates->toJson() }},
         hsnRates: {{ $hsnRates->toJson() }},
         partyId: '{{ $prefill['party_id'] ?? '' }}',
+        priceIncl: {{ ($prefill['gst_inclusive'] ?? false) ? 'true' : 'false' }},
         lines: {{ json_encode($initLines) }},
         products: {{ $productMap->toJson() }},
         // When a saved product is chosen (by name), pull its HSN, GST% and price.
@@ -65,16 +66,22 @@
             if (p.gst !== '' && p.gst !== null) l.gst_rate = p.gst;
             if (p.price && (l.rate === '' || l.rate === null || parseFloat(l.rate) === 0)) l.rate = p.price;
         },
-        addLine() { this.lines.push({description: '', hsn_sac_code: '', quantity: 1, rate: '', discount_percent: 0, gst_rate: ''}); },
+        addLine() { this.lines.push({description: '', hsn_sac_code: '', quantity: 1, rate: '', discount_percent: 0, gst_rate: '', meta: null}); },
         removeLine(i) { if (this.lines.length > 1) this.lines.splice(i, 1); },
         isInterstate() { return this.partyId && this.supplierState && this.partyStates[this.partyId] && this.partyStates[this.partyId] !== this.supplierState; },
+        metaText(l) { if (!l.meta) return ''; return Object.entries(l.meta).filter(([k,v]) => v !== null && v !== '').map(([k,v]) => k.replace(/_/g,' ')+': '+v).join('  ·  '); },
         // Effective GST %: the line's own rate wins; else the HSN master rate; else 0 (never guess).
         lineRate(l) {
             let g = parseFloat(l.gst_rate);
             if ((!g || isNaN(g)) && this.hsnRates[l.hsn_sac_code]) g = this.hsnRates[l.hsn_sac_code].igst;
             return (!g || isNaN(g)) ? 0 : g;
         },
-        lineTaxable(l) { return (parseFloat(l.quantity)||0) * (parseFloat(l.rate)||0) * (1 - (parseFloat(l.discount_percent)||0)/100); },
+        // Inclusive prices already contain GST → gross down to the taxable value.
+        lineTaxable(l) {
+            let net = (parseFloat(l.quantity)||0) * (parseFloat(l.rate)||0) * (1 - (parseFloat(l.discount_percent)||0)/100);
+            if (this.priceIncl) { let r = this.lineRate(l); return r > 0 ? net/(1 + r/100) : net; }
+            return net;
+        },
         lineTax(l) { return this.lineTaxable(l) * this.lineRate(l) / 100; },
         taxableTotal() { return this.lines.reduce((s,l) => s + this.lineTaxable(l), 0); },
         taxTotal() { return this.lines.reduce((s,l) => s + this.lineTax(l), 0); },
@@ -89,6 +96,8 @@
             @csrf
             @if($editing ?? false) @method('PUT') @endif
             <input type="hidden" name="type" value="{{ $type ?? 'sales' }}">
+            @if($prefill['suggestion_id'] ?? null)<input type="hidden" name="ai_suggestion" value="{{ $prefill['suggestion_id'] }}">@endif
+            <input type="hidden" name="price_includes_gst" :value="priceIncl ? '1' : '0'">
 
             @if(($type ?? 'sales') === 'sales')
             @php $selectedDoc = old('document_type', ($editing ?? false) ? $invoice->document_type : 'tax_invoice'); @endphp
@@ -166,6 +175,8 @@
                                            @change="applyProduct(line)" @input="applyProduct(line)" required placeholder="Type or pick a product"
                                            class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
                                     <input type="hidden" :name="'lines[' + i + '][unit]'" :value="line.unit || 'nos'">
+                                    <input type="hidden" :name="'lines[' + i + '][meta]'" :value="line.meta ? JSON.stringify(line.meta) : ''">
+                                    <p class="text-[11px] text-gray-400 mt-0.5" x-show="metaText(line)" x-cloak x-text="metaText(line)"></p>
                                 </td>
                                 <td class="px-3 py-2">
                                     {{-- Free text (any HSN/SAC), with the master as type-ahead suggestions. --}}
@@ -204,6 +215,26 @@
             <button type="button" @click="addLine()" class="text-sm text-blue-600 hover:text-blue-700 mb-6">
                 <i class="fa fa-plus mr-1"></i>Add line
             </button>
+
+            {{-- GST inclusive/exclusive + TDS --}}
+            <div class="flex flex-wrap items-center gap-x-8 gap-y-3 mb-6 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Prices are</span>
+                    <div class="inline-flex rounded-lg border border-gray-200 p-0.5 bg-white">
+                        <button type="button" @click="priceIncl=false" :class="!priceIncl ? 'bg-navy-600 text-white' : 'text-gray-500'" class="px-3 py-1 text-xs font-medium rounded-md">GST-exclusive</button>
+                        <button type="button" @click="priceIncl=true" :class="priceIncl ? 'bg-navy-600 text-white' : 'text-gray-500'" class="px-3 py-1 text-xs font-medium rounded-md">GST-inclusive</button>
+                    </div>
+                    <span x-show="priceIncl" x-cloak class="text-xs text-gray-400">tax is backed out of each line</span>
+                </div>
+                @if(($type ?? 'sales') === 'purchase')
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">TDS %</span>
+                    <input type="number" step="0.01" min="0" max="100" name="tds_rate" value="{{ old('tds_rate', $prefill['tds_rate'] ?? '') }}" placeholder="0"
+                           class="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-right">
+                    <span class="text-xs text-gray-400" x-data>deduct on payment</span>
+                </div>
+                @endif
+            </div>
 
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Notes / Payment Terms</label>

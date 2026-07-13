@@ -307,6 +307,7 @@ class AiAssistantController extends Controller
         $ex['party_bank_ifsc']           = $vendor['bank_ifsc'] ?? null;
         $ex['party_bank_account_holder'] = $vendor['bank_account_holder'] ?? null;
         $ex['party_upi_id']              = $vendor['upi_id'] ?? null;
+        $ex['party_classification']      = $vendor['classification'] ?? null;
 
         // Carry the chosen party's confidence onto the party_* aliases so the
         // review UI's green/amber logic stays meaningful.
@@ -359,13 +360,17 @@ class AiAssistantController extends Controller
             'upi_id'              => $ex['party_upi_id'] ?? null,
         ];
 
+        $classification = in_array(($ex['party_classification'] ?? null), ['customer', 'vendor', 'supplier', 'service_provider'], true)
+            ? $ex['party_classification'] : null;
+
         if ($match) {
-            // Backfill bank details onto a known vendor that doesn't have them yet.
-            if (! $match->hasBankDetails()) {
-                $fields = array_filter($this->bankFields($bank), fn ($v) => filled($v));
-                if ($fields) {
-                    $match->fill($fields)->save();
-                }
+            // Backfill bank details + classification onto a known party that lacks them.
+            $fill = ! $match->hasBankDetails() ? array_filter($this->bankFields($bank), fn ($v) => filled($v)) : [];
+            if ($classification && ! $match->classification) {
+                $fill['classification'] = $classification;
+            }
+            if ($fill) {
+                $match->fill($fill)->save();
             }
             return $match;
         }
@@ -377,6 +382,7 @@ class AiAssistantController extends Controller
             'email'   => $ex['party_email'] ?? null,
             'phone'   => $ex['party_phone'] ?? null,
             'address' => $ex['party_address'] ?? null,
+            'classification' => $classification,
         ] + $bank, $tenantId, $type);
     }
 
@@ -395,9 +401,13 @@ class AiAssistantController extends Controller
                      : ($gstin !== '' ? substr($gstin, 2, 10) : null);
         $pan       = ($pan && strlen($pan) === 10) ? $pan : null;
 
+        $classification = in_array(($vendor['classification'] ?? null), ['customer', 'vendor', 'supplier', 'service_provider'], true)
+            ? $vendor['classification'] : null;
+
         return Party::create([
             'tenant_id'  => $tenantId,
             'type'       => $type,
+            'classification' => $classification,
             'name'       => $this->clip($name !== '' ? $name : 'Unnamed Vendor', 255),
             'gstin'      => $gstin !== '' ? $gstin : null,
             'pan'        => $pan,

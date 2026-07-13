@@ -19,6 +19,8 @@ class Invoice extends Model
         'subtotal', 'discount_amount', 'taxable_amount',
         'cgst_amount', 'sgst_amount', 'igst_amount', 'cess_amount',
         'total_tax', 'round_off', 'total_amount', 'paid_amount', 'balance_amount',
+        'price_includes_gst', 'tds_rate', 'tds_amount',
+        'source_file_path', 'source_file_name', 'extra',
         'irn', 'ack_number', 'ack_date', 'signed_qr', 'eway_bill_number',
         'notes', 'terms', 'journal_id', 'created_by', 'posted_at',
     ];
@@ -30,6 +32,10 @@ class Invoice extends Model
         'posted_at' => 'datetime',
         'is_interstate' => 'boolean',
         'reverse_charge' => 'boolean',
+        'price_includes_gst' => 'boolean',
+        'tds_rate' => 'decimal:2',
+        'tds_amount' => 'decimal:2',
+        'extra' => 'array',
         'subtotal' => 'decimal:4',
         'total_amount' => 'decimal:4',
         'balance_amount' => 'decimal:4',
@@ -65,6 +71,16 @@ class Invoice extends Model
     public function isAccountingDocument(): bool
     {
         return $this->type === 'purchase' || ($this->document_type ?? 'tax_invoice') === 'tax_invoice';
+    }
+
+    /** Path to the original scanned file — direct, or via the AI suggestion that made it. */
+    public function originalFilePath(): ?string
+    {
+        if ($this->source_file_path) {
+            return $this->source_file_path;
+        }
+        $s = AiSuggestion::where('tenant_id', $this->tenant_id)->where('invoice_id', $this->id)->latest('id')->first();
+        return $s?->input_context['file_path'] ?? null;
     }
 
     public function scopeForTenant($query, int $tenantId)
