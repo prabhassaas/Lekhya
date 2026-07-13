@@ -12,6 +12,12 @@
     $supplierState = $stateOf(($tenant ?? null)?->state_code, ($tenant ?? null)?->gstin);
     $prefill = $prefill ?? null;
     $initLines = $prefill['lines'] ?? [['description' => '', 'hsn_sac_code' => '', 'quantity' => 1, 'rate' => '', 'discount_percent' => 0]];
+    // Product master → auto-fill HSN/rate/price when a saved product is picked.
+    $isSale = ($type ?? 'sales') === 'sales';
+    $productMap = ($products ?? collect())->mapWithKeys(fn($p) => [mb_strtolower(trim($p->name)) => [
+        'name' => $p->name, 'hsn' => (string) $p->hsn_sac_code, 'gst' => $p->gst_rate !== null ? (float) $p->gst_rate : '',
+        'unit' => $p->unit ?: 'nos', 'price' => (float) ($isSale ? ($p->sale_price ?? 0) : ($p->purchase_price ?? 0)),
+    ]]);
     $amberFields = collect($prefill['validation']['fields'] ?? [])->filter(fn($f) => $f['status'] === 'amber');
     $failedChecks = collect($prefill['validation']['checks'] ?? [])->filter(fn($c) => ! $c['ok']);
 @endphp
@@ -50,6 +56,15 @@
         hsnRates: {{ $hsnRates->toJson() }},
         partyId: '{{ $prefill['party_id'] ?? '' }}',
         lines: {{ json_encode($initLines) }},
+        products: {{ $productMap->toJson() }},
+        // When a saved product is chosen (by name), pull its HSN, GST% and price.
+        applyProduct(l) {
+            let p = this.products[(l.description || '').trim().toLowerCase()];
+            if (!p) return;
+            if (p.hsn) l.hsn_sac_code = p.hsn;
+            if (p.gst !== '' && p.gst !== null) l.gst_rate = p.gst;
+            if (p.price && (l.rate === '' || l.rate === null || parseFloat(l.rate) === 0)) l.rate = p.price;
+        },
         addLine() { this.lines.push({description: '', hsn_sac_code: '', quantity: 1, rate: '', discount_percent: 0, gst_rate: ''}); },
         removeLine(i) { if (this.lines.length > 1) this.lines.splice(i, 1); },
         isInterstate() { return this.partyId && this.supplierState && this.partyStates[this.partyId] && this.partyStates[this.partyId] !== this.supplierState; },
@@ -74,6 +89,22 @@
             @csrf
             @if($editing ?? false) @method('PUT') @endif
             <input type="hidden" name="type" value="{{ $type ?? 'sales' }}">
+
+            @if(($type ?? 'sales') === 'sales')
+            @php $selectedDoc = old('document_type', ($editing ?? false) ? $invoice->document_type : 'tax_invoice'); @endphp
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Document type</label>
+                <div class="inline-flex flex-wrap rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                    @foreach(\App\Models\Invoice::DOCUMENT_TYPES as $val => $label)
+                    <label class="cursor-pointer">
+                        <input type="radio" name="document_type" value="{{ $val }}" class="peer sr-only" @checked($selectedDoc === $val)>
+                        <span class="block px-4 py-1.5 text-sm font-medium rounded-md text-gray-500 peer-checked:bg-white peer-checked:text-navy-700 peer-checked:shadow-sm">{{ $label }}</span>
+                    </label>
+                    @endforeach
+                </div>
+                <p class="text-xs text-gray-400 mt-1.5"><i class="fa fa-circle-info mr-1"></i>Only a <strong>Tax Invoice</strong> posts to the ledger and carries GST. Proforma &amp; Delivery Challan are documents only.</p>
+            </div>
+            @endif
 
             <div class="grid grid-cols-2 gap-4 mb-5">
                 <div>
@@ -131,7 +162,8 @@
                         <template x-for="(line, i) in lines" :key="i">
                             <tr class="border-t border-gray-100">
                                 <td class="px-3 py-2">
-                                    <input type="text" :name="'lines[' + i + '][description]'" x-model="line.description" required
+                                    <input type="text" list="productList" :name="'lines[' + i + '][description]'" x-model="line.description"
+                                           @change="applyProduct(line)" @input="applyProduct(line)" required placeholder="Type or pick a product"
                                            class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
                                     <input type="hidden" :name="'lines[' + i + '][unit]'" :value="line.unit || 'nos'">
                                 </td>
@@ -203,6 +235,13 @@
             <datalist id="hsnList">
                 @foreach($hsnCodes ?? [] as $h)
                 <option value="{{ $h->code }}">{{ $h->code }} — {{ (int) $h->igst_rate }}%</option>
+                @endforeach
+            </datalist>
+
+            {{-- Product master type-ahead — picking one auto-fills HSN, GST% and price --}}
+            <datalist id="productList">
+                @foreach($products ?? [] as $p)
+                <option value="{{ $p->name }}">{{ $p->hsn_sac_code ? $p->hsn_sac_code . ' · ' : '' }}{{ $p->gst_rate !== null ? (int) $p->gst_rate . '% GST' : '' }}</option>
                 @endforeach
             </datalist>
 

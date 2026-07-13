@@ -75,6 +75,9 @@
             <a href="{{ route('accounting.accounts.index') }}" class="nav-link @active('accounting.accounts*')">
                 <i class="fa fa-sitemap w-5"></i> <span>Chart of Accounts</span>
             </a>
+            <a href="{{ route('accounting.products.index') }}" class="nav-link @active('accounting.products*')">
+                <i class="fa fa-boxes-stacked w-5"></i> <span>Inventory / Products</span>
+            </a>
 
             <div class="pt-3 pb-1">
                 <p class="px-2 text-xs font-semibold text-navy-300 uppercase tracking-wider">Reports</p>

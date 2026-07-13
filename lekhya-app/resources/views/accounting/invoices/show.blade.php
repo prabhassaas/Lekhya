@@ -13,6 +13,9 @@
                 {{ $invoice->status }}
             </span>
             <span class="text-gray-500 text-sm">{{ $invoice->invoice_date->format('d M Y') }}</span>
+            <span class="text-xs px-2.5 py-1 rounded-full font-medium {{ $invoice->isAccountingDocument() ? 'bg-navy-50 text-navy-700' : 'bg-purple-50 text-purple-700' }}">
+                <i class="fa fa-file-lines mr-1"></i>{{ $invoice->documentLabel() }}
+            </span>
             @if($invoice->irn)<span class="text-xs px-2.5 py-1 rounded-full font-medium bg-navy-50 text-navy-700"><i class="fa fa-qrcode mr-1"></i>e-Invoice generated</span>@endif
         </div>
         <div class="flex gap-2">
@@ -20,12 +23,18 @@
             <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
                 <i class="fa fa-pen mr-1.5"></i>Edit
             </a>
+            @if($invoice->isAccountingDocument())
             <form method="POST" action="{{ route('accounting.invoices.post', $invoice) }}" onsubmit="return confirm('Post this invoice to the ledger? This cannot be undone.');">
                 @csrf
                 <button class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">
                     <i class="fa fa-check mr-1.5"></i>Post to Ledger
                 </button>
             </form>
+            @else
+            <span class="px-4 py-2 text-xs text-purple-700 bg-purple-50 rounded-lg self-center">
+                <i class="fa fa-circle-info mr-1"></i>{{ $invoice->documentLabel() }} — not posted to ledger
+            </span>
+            @endif
             <form method="POST" action="{{ route('accounting.invoices.cancel', $invoice) }}" onsubmit="return confirm('Cancel this invoice?');">
                 @csrf
                 <button class="px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50">Cancel</button>

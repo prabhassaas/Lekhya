@@ -6,6 +6,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Accounting\AccountController;
 use App\Http\Controllers\Accounting\InvoiceController;
 use App\Http\Controllers\Accounting\PartyController;
+use App\Http\Controllers\Accounting\ProductController;
 use App\Http\Controllers\Accounting\PaymentController;
 use App\Http\Controllers\Accounting\JournalController;
 use App\Http\Controllers\Accounting\ReportController;
@@ -76,6 +77,10 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::resource('invoices', InvoiceController::class);
         Route::post('invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post');
         Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+
+        // Inventory / products (HSN auto-mapped)
+        Route::get('hsn-lookup', [ProductController::class, 'hsnLookup'])->name('hsn.lookup');
+        Route::resource('products', ProductController::class)->except(['show']);
 
         // Parties (vendors & customers) — export must precede the {party} route.
         Route::get('parties', [PartyController::class, 'index'])->name('parties.index');

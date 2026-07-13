@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
-use App\Models\{Invoice, Party, PartyBranch, FiscalYear, Account, HsnSacCode, TenantItem, AiSuggestion};
+use App\Models\{Invoice, Party, PartyBranch, FiscalYear, Account, HsnSacCode, TenantItem, AiSuggestion, Product};
 use App\Services\Accounting\InvoicePostingService;
 use App\Services\GST\GstRateEngine;
 use App\Services\AI\InvoiceExtractionValidator;
@@ -28,12 +28,13 @@ class InvoiceController extends Controller {
         $parties = Party::where('tenant_id', $tenantId)->where('is_active', true)->get();
         $accounts = Account::where('tenant_id', $tenantId)->where('is_ledger', true)->get();
         $hsnCodes = HsnSacCode::limit(200)->get();
+        $products = Product::where('tenant_id', $tenantId)->where('is_active', true)->orderBy('name')->get();
         $fiscalYear = FiscalYear::where('tenant_id', $tenantId)->where('is_current', true)->first();
 
         // Pre-fill from an approved AI invoice extraction (?ai_suggestion=id).
         $prefill = $this->prefillFromExtraction($request, $tenantId, $parties);
 
-        return view('accounting.invoices.form', compact('parties', 'accounts', 'hsnCodes', 'type', 'fiscalYear', 'tenant', 'prefill'));
+        return view('accounting.invoices.form', compact('parties', 'accounts', 'hsnCodes', 'products', 'type', 'fiscalYear', 'tenant', 'prefill'));
     }
 
     private function prefillFromExtraction(Request $request, int $tenantId, $parties): ?array {
@@ -126,14 +127,19 @@ class InvoiceController extends Controller {
         $validated = $request->validate($this->rules());
         $tenant = auth()->user()->tenant;
         $party = Party::where('tenant_id', $tenantId)->findOrFail($validated['party_id']);
+        $this->alignPartyType($party, $validated['type']);
         $fiscalYear = FiscalYear::where('tenant_id', $tenantId)->where('is_current', true)->firstOrFail();
+
+        // Document type only applies to sales; purchases are always bills.
+        $docType = $validated['type'] === 'sales' ? ($validated['document_type'] ?? 'tax_invoice') : 'tax_invoice';
+        $validated['document_type'] = $docType;
 
         $c = $this->computeInvoice($validated, $request->input('lines', []), $tenant, $party);
 
         $invoice = Invoice::create(array_merge($validated, $c['header'], [
             'tenant_id' => $tenantId,
             'fiscal_year_id' => $fiscalYear->id,
-            'invoice_number' => $this->nextNumber($tenantId, $validated['type']),
+            'invoice_number' => $this->nextNumber($tenantId, $validated['type'], $docType),
             'status' => 'draft',
             'created_by' => auth()->id(),
         ]));
@@ -159,6 +165,7 @@ class InvoiceController extends Controller {
         $parties = Party::where('tenant_id', $tenantId)->where('is_active', true)->get();
         $accounts = Account::where('tenant_id', $tenantId)->where('is_ledger', true)->get();
         $hsnCodes = HsnSacCode::limit(200)->get();
+        $products = Product::where('tenant_id', $tenantId)->where('is_active', true)->orderBy('name')->get();
         $fiscalYear = FiscalYear::where('tenant_id', $tenantId)->where('is_current', true)->first();
         $editing = true;
 
@@ -198,6 +205,7 @@ class InvoiceController extends Controller {
         $validated = $request->validate($this->rules());
         $tenant = auth()->user()->tenant;
         $party = Party::where('tenant_id', $tenantId)->findOrFail($validated['party_id']);
+        $this->alignPartyType($party, $invoice->type);
 
         // Keep the original number/type — editing a draft never re-numbers it.
         unset($validated['type']);
@@ -216,6 +224,7 @@ class InvoiceController extends Controller {
     private function rules(): array {
         return [
             'type' => 'required|in:sales,purchase',
+            'document_type' => 'nullable|in:tax_invoice,proforma,delivery_challan',
             'party_id' => 'required|exists:parties,id',
             'party_branch_id' => 'nullable|integer|exists:party_branches,id',
             'reference_number' => 'nullable|string|max:100',
@@ -332,6 +341,9 @@ class InvoiceController extends Controller {
     }
 
     public function post(Invoice $invoice) {
+        if (! $invoice->isAccountingDocument()) {
+            return back()->with('error', $invoice->documentLabel() . ' is not a tax invoice — it carries no GST liability. Convert it to a tax invoice to post to the ledger.');
+        }
         try {
             $this->posting->post($invoice, auth()->id());
             return back()->with('success', 'Invoice posted to ledger successfully.');
@@ -354,6 +366,20 @@ class InvoiceController extends Controller {
         return redirect()->route('accounting.invoices.index')->with('success', 'Invoice deleted.');
     }
 
+    /**
+     * Keep a party in the right bucket for the document it's used on. A sales
+     * invoice makes the counterparty a customer; a purchase makes them a vendor.
+     * If they're already the opposite, widen to 'both' (buy-from & sell-to) rather
+     * than flipping — never silently drops an existing relationship.
+     */
+    private function alignPartyType(Party $party, string $type): void {
+        $want = $type === 'sales' ? 'customer' : 'vendor';
+        if ($party->type === $want || $party->type === 'both') {
+            return;
+        }
+        $party->update(['type' => 'both']);
+    }
+
     /** State code from the field, or the first 2 digits of the GSTIN as a fallback. */
     private function stateOf(?string $stateCode, ?string $gstin): string {
         $s = trim((string) $stateCode);
@@ -371,8 +397,13 @@ class InvoiceController extends Controller {
         return $row ? (float) $row->igst_rate : null;
     }
 
-    private function nextNumber(int $tenantId, string $type): string {
-        $prefix = $type === 'sales' ? 'SI' : 'PI';
+    private function nextNumber(int $tenantId, string $type, string $documentType = 'tax_invoice'): string {
+        $prefix = match (true) {
+            $type === 'purchase'                => 'PI',
+            $documentType === 'proforma'        => 'PRO',
+            $documentType === 'delivery_challan' => 'DC',
+            default                             => 'SI',
+        };
         $year = date('y');
         // Include soft-deleted rows and derive from the highest existing sequence —
         // count() alone reuses numbers after a delete and hits the unique constraint.

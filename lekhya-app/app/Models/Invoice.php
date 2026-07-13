@@ -13,7 +13,7 @@ class Invoice extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id', 'fiscal_year_id', 'type', 'invoice_number', 'reference_number',
+        'tenant_id', 'fiscal_year_id', 'type', 'document_type', 'invoice_number', 'reference_number',
         'invoice_date', 'due_date', 'party_id', 'party_branch_id', 'place_of_supply', 'is_interstate',
         'reverse_charge', 'status', 'source', 'source_invoice_id',
         'subtotal', 'discount_amount', 'taxable_amount',
@@ -45,6 +45,26 @@ class Invoice extends Model
     public function isLocked(): bool
     {
         return in_array($this->status, ['locked', 'posted', 'cancelled']);
+    }
+
+    public const DOCUMENT_TYPES = [
+        'tax_invoice'      => 'Tax Invoice',
+        'proforma'         => 'Proforma Invoice',
+        'delivery_challan' => 'Delivery Challan',
+    ];
+
+    public function documentLabel(): string
+    {
+        if ($this->type === 'purchase') {
+            return 'Purchase Bill';
+        }
+        return self::DOCUMENT_TYPES[$this->document_type] ?? 'Tax Invoice';
+    }
+
+    /** Only a tax invoice / purchase bill creates ledger postings & GST liability. */
+    public function isAccountingDocument(): bool
+    {
+        return $this->type === 'purchase' || ($this->document_type ?? 'tax_invoice') === 'tax_invoice';
     }
 
     public function scopeForTenant($query, int $tenantId)
