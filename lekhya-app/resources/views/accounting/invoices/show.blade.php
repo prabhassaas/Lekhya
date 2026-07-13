@@ -51,6 +51,16 @@
                 <i class="fa fa-qrcode mr-1.5"></i>Generate e-Invoice
             </a>
             @endif
+            @if($invoice->status === 'posted')
+            <form method="POST" action="{{ route('accounting.invoices.reverse', $invoice) }}"
+                  onsubmit="var r=prompt('Reverse and void this bill?\n\nThis posts a reversing ledger entry and removes the bill from GST returns, pending payments and reports. The record is kept for audit.\n\nReason:','Duplicate'); if(r===null){return false;} this.reason.value=r; return true;">
+                @csrf
+                <input type="hidden" name="reason" value="">
+                <button class="px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50">
+                    <i class="fa fa-rotate-left mr-1.5"></i>Reverse / Void
+                </button>
+            </form>
+            @endif
         </div>
     </div>
 

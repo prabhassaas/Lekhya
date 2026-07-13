@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
-use App\Models\{Journal, FiscalYear, Account};
+use App\Models\{Journal, FiscalYear, Account, Invoice};
 use App\Services\Accounting\JournalEngine;
 use Illuminate\Http\Request;
 
@@ -53,7 +53,17 @@ class JournalController extends Controller {
         $request->validate(['date' => 'required|date', 'reason' => 'nullable|string|max:255']);
         try {
             $reversal = $this->engine->reverse($journal, $request->date, auth()->id(), $request->reason ?? '');
-            return redirect()->route('accounting.journals.show', $reversal)->with('success', 'Journal reversed. Reversal voucher created.');
+
+            // Keep linked modules in step: if this journal came from an invoice,
+            // void that invoice too so it leaves GST returns, payments & reports.
+            $voided = Invoice::where('tenant_id', $journal->tenant_id)->where('journal_id', $journal->id)
+                ->where('status', 'posted')->get();
+            foreach ($voided as $inv) {
+                $inv->update(['status' => 'cancelled', 'balance_amount' => 0]);
+            }
+            $note = $voided->isNotEmpty() ? ' Linked bill ' . $voided->pluck('invoice_number')->implode(', ') . ' voided.' : '';
+
+            return redirect()->route('accounting.journals.show', $reversal)->with('success', 'Journal reversed. Reversal voucher created.' . $note);
         } catch (\Throwable $e) {
             return back()->with('error', $e->getMessage());
         }

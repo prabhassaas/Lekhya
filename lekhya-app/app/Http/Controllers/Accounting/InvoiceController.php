@@ -3,12 +3,14 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Models\{Invoice, Party, PartyBranch, FiscalYear, Account, HsnSacCode, TenantItem, AiSuggestion, Product};
 use App\Services\Accounting\InvoicePostingService;
+use App\Services\Accounting\JournalEngine;
 use App\Services\GST\GstRateEngine;
 use App\Services\AI\InvoiceExtractionValidator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller {
-    public function __construct(private InvoicePostingService $posting, private GstRateEngine $rateEngine) {}
+    public function __construct(private InvoicePostingService $posting, private GstRateEngine $rateEngine, private JournalEngine $journalEngine) {}
 
     public function index(Request $request) {
         $tenantId = auth()->user()->tenant_id;
@@ -394,10 +396,40 @@ class InvoiceController extends Controller {
 
     public function cancel(Invoice $invoice) {
         if ($invoice->status === 'posted') {
-            return back()->with('error', 'Use a credit note to cancel a posted invoice.');
+            return back()->with('error', 'This bill is posted — use “Reverse” to void it (it reverses the ledger entry and removes it from GST returns, payments & reports).');
         }
         $invoice->update(['status' => 'cancelled']);
         return back()->with('success', 'Invoice cancelled.');
+    }
+
+    /**
+     * Reverse & void a POSTED bill (e.g. a duplicate). Posts a reversing journal
+     * so the ledger nets to zero, then marks the bill cancelled with a nil balance
+     * so it drops out of GST returns, pending payments and reports. The original
+     * record is kept for the audit trail — never hard-deleted.
+     */
+    public function reverse(Invoice $invoice, Request $request) {
+        $this->authorize('view', $invoice);
+        if ($invoice->status !== 'posted') {
+            return back()->with('error', 'Only a posted bill can be reversed. Drafts can be deleted directly.');
+        }
+        $reason = trim((string) $request->input('reason')) ?: 'Reversed (duplicate/void)';
+        try {
+            DB::transaction(function () use ($invoice, $reason) {
+                if ($invoice->journal_id && $invoice->journal && ! $invoice->journal->is_reversed) {
+                    $this->journalEngine->reverse($invoice->journal, now()->toDateString(), auth()->id(), $reason);
+                }
+                $invoice->update([
+                    'status'         => 'cancelled',
+                    'balance_amount' => 0,
+                    'notes'          => trim(($invoice->notes ? $invoice->notes . "\n" : '') . '⤺ ' . $reason . ' on ' . now()->format('d M Y')),
+                ]);
+            });
+            return redirect()->route('accounting.invoices.show', $invoice)
+                ->with('success', 'Bill reversed & voided — the ledger entry was reversed and this bill is removed from GST returns, pending payments and reports. The record is kept for audit.');
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     public function destroy(Invoice $invoice) {
