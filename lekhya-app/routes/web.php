@@ -88,6 +88,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         // Pending payments (payables / receivables) from recorded bills.
         Route::get('payments/pending', [PaymentController::class, 'pending'])->name('payments.pending');
         Route::get('payments/pending/export', [PaymentController::class, 'export'])->name('payments.export');
+        // Bank payment-file builder (invoice-wise NEFT/RTGS upload per bank).
+        Route::get('payments/bank-file', [PaymentController::class, 'bankFile'])->name('payments.bankfile');
+        Route::get('payments/bank-file/{bank}', [PaymentController::class, 'exportBank'])->name('payments.bankfile.download');
         Route::resource('journals', JournalController::class);
         Route::post('journals/{journal}/reverse', [JournalController::class, 'reverse'])->name('journals.reverse');
         Route::get('reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.pl');
@@ -105,6 +108,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Banking / Reconciliation
     Route::prefix('banking')->name('banking.')->group(function () {
         Route::get('/', [BankReconciliationController::class, 'index'])->name('index');
+        Route::post('accounts', [BankReconciliationController::class, 'createAccount'])->name('accounts.store');
         Route::post('import-passbook', [BankReconciliationController::class, 'importPassbook'])->name('import');
         Route::get('reconcile/{bankAccount}', [BankReconciliationController::class, 'reconcile'])->name('reconcile');
         Route::post('match', [BankReconciliationController::class, 'match'])->name('match');

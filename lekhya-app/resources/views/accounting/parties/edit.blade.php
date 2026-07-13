@@ -91,6 +91,37 @@
             </div>
         </div>
 
+        {{-- Bank / payment details — used to build bank payment files --}}
+        <div class="pt-4 border-t border-gray-100">
+            <div class="flex items-center gap-2 mb-3">
+                <i class="fa fa-building-columns text-navy-500"></i>
+                <h3 class="text-sm font-semibold text-gray-800">Bank &amp; payment details</h3>
+                <span class="text-xs text-gray-400">(for payment files / NEFT)</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Account holder name</label>
+                    <input type="text" name="bank_account_holder" value="{{ old('bank_account_holder', $party->bank_account_holder) }}" maxlength="120" placeholder="As per bank records" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bank name</label>
+                    <input type="text" name="bank_name" value="{{ old('bank_name', $party->bank_name) }}" maxlength="120" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Account number</label>
+                    <input type="text" name="bank_account_number" value="{{ old('bank_account_number', $party->bank_account_number) }}" maxlength="34" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">IFSC</label>
+                    <input type="text" name="bank_ifsc" value="{{ old('bank_ifsc', $party->bank_ifsc) }}" maxlength="11" placeholder="HDFC0001234" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono uppercase">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">UPI ID <span class="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="text" name="upi_id" value="{{ old('upi_id', $party->upi_id) }}" maxlength="120" placeholder="name@bank" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+            </div>
+        </div>
+
         <label class="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $party->is_active)) class="rounded border-gray-300">
             Active

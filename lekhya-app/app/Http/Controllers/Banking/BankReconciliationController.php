@@ -1,15 +1,57 @@
 <?php
 namespace App\Http\Controllers\Banking;
 use App\Http\Controllers\Controller;
-use App\Models\{BankAccount, BankTransaction};
+use App\Models\{Account, BankAccount, BankTransaction, JournalLine};
 use Illuminate\Http\Request;
-use League\Csv\Reader;
 
 class BankReconciliationController extends Controller {
     public function index() {
         $tenantId = auth()->user()->tenant_id;
         $bankAccounts = BankAccount::where('tenant_id', $tenantId)->with('account')->get();
-        return view('banking.index', compact('bankAccounts'));
+
+        $stats = [];
+        foreach ($bankAccounts as $ba) {
+            $stats[$ba->id] = [
+                'total'        => BankTransaction::where('bank_account_id', $ba->id)->count(),
+                'unreconciled' => BankTransaction::where('bank_account_id', $ba->id)->where('status', 'unreconciled')->count(),
+            ];
+        }
+
+        // Ledger accounts a bank feed can post against (asset/bank/cash leaves).
+        $ledgers = Account::where('tenant_id', $tenantId)
+            ->where(fn ($q) => $q->where('is_ledger', true)->orWhereDoesntHave('children'))
+            ->where(fn ($q) => $q->where('type', 'asset')->orWhere('name', 'like', '%bank%')->orWhere('name', 'like', '%cash%'))
+            ->orderBy('code')->get(['id', 'code', 'name']);
+
+        return view('banking.index', compact('bankAccounts', 'stats', 'ledgers'));
+    }
+
+    public function createAccount(Request $request) {
+        $tenantId = auth()->user()->tenant_id;
+        $data = $request->validate([
+            'bank_name'       => 'required|string|max:120',
+            'account_number'  => 'required|string|max:34',
+            'ifsc_code'       => 'nullable|string|max:15',
+            'branch'          => 'nullable|string|max:120',
+            'account_type'    => 'nullable|string|max:30',
+            'opening_balance' => 'nullable|numeric',
+            'account_id'      => 'required|integer|exists:accounts,id',
+        ]);
+        Account::where('tenant_id', $tenantId)->findOrFail($data['account_id']);
+
+        BankAccount::create([
+            'tenant_id'       => $tenantId,
+            'account_id'      => $data['account_id'],
+            'bank_name'       => $data['bank_name'],
+            'account_number'  => preg_replace('/[^0-9A-Za-z]/', '', $data['account_number']),
+            'ifsc_code'       => $data['ifsc_code'] ? strtoupper(trim($data['ifsc_code'])) : null,
+            'branch'          => $data['branch'] ?? null,
+            'account_type'    => $data['account_type'] ?? 'current',
+            'opening_balance' => $data['opening_balance'] ?? 0,
+            'is_active'       => true,
+        ]);
+
+        return back()->with('success', 'Bank account added. Import a statement to start reconciling.');
     }
 
     public function importPassbook(Request $request) {
@@ -58,8 +100,45 @@ class BankReconciliationController extends Controller {
 
     public function reconcile(BankAccount $bankAccount) {
         $tenantId = auth()->user()->tenant_id;
-        $transactions = BankTransaction::where('tenant_id', $tenantId)->where('bank_account_id', $bankAccount->id)->orderBy('transaction_date')->paginate(50);
-        return view('banking.reconcile', compact('bankAccount', 'transactions'));
+        abort_if($bankAccount->tenant_id !== $tenantId, 403);
+
+        $transactions = BankTransaction::where('tenant_id', $tenantId)
+            ->where('bank_account_id', $bankAccount->id)
+            ->orderBy('transaction_date')->orderBy('id')->paginate(50);
+
+        // Unmatched ledger postings on this bank's account, to suggest matches from.
+        $used = BankTransaction::where('bank_account_id', $bankAccount->id)
+            ->whereNotNull('journal_line_id')->pluck('journal_line_id')->all();
+
+        $pool = $bankAccount->account_id
+            ? JournalLine::where('tenant_id', $tenantId)
+                ->where('account_id', $bankAccount->account_id)
+                ->whereNotIn('id', $used ?: [0])
+                ->with('journal')->get()
+            : collect();
+
+        // Money IN on the statement (credit) ↔ a DEBIT to the bank ledger; money
+        // OUT (debit) ↔ a CREDIT. Suggest the same-amount posting nearest in date.
+        $suggestions = [];
+        foreach ($transactions as $txn) {
+            if ($txn->status === 'reconciled') { continue; }
+            $isIn  = (float) $txn->credit > 0;
+            $amount = $isIn ? (float) $txn->credit : (float) $txn->debit;
+            if ($amount <= 0) { continue; }
+
+            $best = $pool
+                ->filter(fn ($l) => abs(($isIn ? (float) $l->debit : (float) $l->credit) - $amount) < 0.01)
+                ->sortBy(fn ($l) => optional($l->journal)->date
+                    ? \Carbon\Carbon::parse($l->journal->date)->diffInDays($txn->transaction_date)
+                    : 9999)
+                ->first();
+
+            if ($best) {
+                $suggestions[$txn->id] = $best;
+            }
+        }
+
+        return view('banking.reconcile', compact('bankAccount', 'transactions', 'suggestions'));
     }
 
     public function match(Request $request) {

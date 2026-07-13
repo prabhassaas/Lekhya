@@ -2,7 +2,9 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Models\BankAccount;
 use App\Models\Invoice;
+use App\Services\Banking\BankPaymentFormats;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -65,6 +67,57 @@ class PaymentController extends Controller
                     number_format((float) $inv->balance_amount, 2, '.', ''),
                     $overdue,
                 ], ',', '"', '');
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** Bank payment-file builder: pick a bank, download an invoice-wise upload file. */
+    public function bankFile(Request $request)
+    {
+        $tenantId = auth()->user()->tenant_id;
+
+        $payables = $this->pendingQuery($tenantId, 'purchase')->with('party')
+            ->orderByRaw('due_date IS NULL asc')->orderBy('due_date')->get();
+
+        [$ready, $missing] = $payables->partition(fn ($i) => $i->party?->hasBankDetails());
+
+        $formats  = collect(BankPaymentFormats::all())->map(fn ($f, $key) => $f + ['key' => $key])->values();
+        $payTotal = (float) $ready->sum('balance_amount');
+
+        return view('accounting.payments.bank-file', [
+            'formats'      => $formats,
+            'readyCount'   => $ready->count(),
+            'payTotal'     => $payTotal,
+            'missing'      => $missing->values(),
+            'rtgsFloor'    => BankPaymentFormats::RTGS_FLOOR,
+        ]);
+    }
+
+    public function exportBank(Request $request, string $bank): StreamedResponse
+    {
+        $format = BankPaymentFormats::find($bank);
+        abort_if(! $format, 404);
+
+        $tenantId = auth()->user()->tenant_id;
+        $invoices = $this->pendingQuery($tenantId, 'purchase')->with('party')
+            ->orderByRaw('due_date IS NULL asc')->orderBy('due_date')->get()
+            ->filter(fn ($i) => $i->party?->hasBankDetails())
+            ->values();
+
+        // The tenant's own bank supplies the debit/remitter account some formats need.
+        $own = BankAccount::where('tenant_id', $tenantId)->where('is_active', true)->first();
+        $ctx = ['debit_account' => $own?->account_number ?? '', 'debit_ifsc' => $own?->ifsc_code ?? ''];
+
+        $headers  = BankPaymentFormats::headers($format);
+        $filename = 'payment-' . $bank . '-' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($invoices, $headers, $format, $ctx) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, $headers, ',', '"', '');
+            foreach ($invoices as $inv) {
+                fputcsv($out, BankPaymentFormats::row($format, $inv, $ctx), ',', '"', '');
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);

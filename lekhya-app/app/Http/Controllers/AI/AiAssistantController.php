@@ -249,6 +249,14 @@ class AiAssistantController extends Controller
         $gstin    = strtoupper(trim((string) ($vendor['gstin'] ?? '')));
         $gstin    = strlen($gstin) === 15 ? $gstin : '';
 
+        // Backfill bank/UPI details onto the existing contact if it has none yet.
+        if (! $existing->hasBankDetails()) {
+            $fields = array_filter($this->bankFields($vendor), fn ($v) => filled($v));
+            if ($fields) {
+                $existing->fill($fields)->save();
+            }
+        }
+
         $params = ['type' => 'purchase', 'ai_suggestion' => $suggestion->id];
 
         if ($data['choice'] === 'branch') {
@@ -294,6 +302,11 @@ class AiAssistantController extends Controller
         $ex['party_address'] = $vendor['address'];
         $ex['party_email']   = $vendor['email'];
         $ex['party_phone']   = $vendor['phone'];
+        $ex['party_bank_name']           = $vendor['bank_name'] ?? null;
+        $ex['party_bank_account_number'] = $vendor['bank_account_number'] ?? null;
+        $ex['party_bank_ifsc']           = $vendor['bank_ifsc'] ?? null;
+        $ex['party_bank_account_holder'] = $vendor['bank_account_holder'] ?? null;
+        $ex['party_upi_id']              = $vendor['upi_id'] ?? null;
 
         // Carry the chosen party's confidence onto the party_* aliases so the
         // review UI's green/amber logic stays meaningful.
@@ -338,7 +351,22 @@ class AiAssistantController extends Controller
         if (! $match && $name !== '') {
             $match = (clone $base)->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
         }
+        $bank = [
+            'bank_name'           => $ex['party_bank_name'] ?? null,
+            'bank_account_number' => $ex['party_bank_account_number'] ?? null,
+            'bank_ifsc'           => $ex['party_bank_ifsc'] ?? null,
+            'bank_account_holder' => $ex['party_bank_account_holder'] ?? null,
+            'upi_id'              => $ex['party_upi_id'] ?? null,
+        ];
+
         if ($match) {
+            // Backfill bank details onto a known vendor that doesn't have them yet.
+            if (! $match->hasBankDetails()) {
+                $fields = array_filter($this->bankFields($bank), fn ($v) => filled($v));
+                if ($fields) {
+                    $match->fill($fields)->save();
+                }
+            }
             return $match;
         }
 
@@ -349,7 +377,7 @@ class AiAssistantController extends Controller
             'email'   => $ex['party_email'] ?? null,
             'phone'   => $ex['party_phone'] ?? null,
             'address' => $ex['party_address'] ?? null,
-        ], $tenantId, $type);
+        ] + $bank, $tenantId, $type);
     }
 
     /** Create a party straight from a normalized vendor block (no matching). */
@@ -378,7 +406,25 @@ class AiAssistantController extends Controller
             'address'    => $this->clip($vendor['address'] ?? null, 255),
             'state_code' => $stateCode,
             'is_active'  => true,
-        ]);
+        ] + $this->bankFields($vendor));
+    }
+
+    /** Sanitised bank/UPI fields ready to merge into a Party create/update. */
+    private function bankFields(array $vendor): array
+    {
+        $acct = preg_replace('/[^0-9A-Za-z]/', '', (string) ($vendor['bank_account_number'] ?? ''));
+        $ifsc = strtoupper(preg_replace('/[^0-9A-Za-z]/', '', (string) ($vendor['bank_ifsc'] ?? '')));
+        // A valid IFSC is exactly 11 chars (4 letters + 0 + 6 alnum); drop misreads.
+        if (! preg_match('/^[A-Z]{4}0[A-Z0-9]{6}$/', $ifsc)) {
+            $ifsc = '';
+        }
+        return [
+            'bank_name'           => $this->clip($vendor['bank_name'] ?? null, 120),
+            'bank_account_number' => $acct !== '' ? mb_substr($acct, 0, 34) : null,
+            'bank_ifsc'           => $ifsc !== '' ? $ifsc : null,
+            'bank_account_holder' => $this->clip($vendor['bank_account_holder'] ?? null, 120),
+            'upi_id'              => $this->clip($vendor['upi_id'] ?? null, 120),
+        ];
     }
 
     /** Trim + cap a value to a column length, returning null when empty. */

@@ -67,10 +67,18 @@ class PartyController extends Controller
             'state'      => 'nullable|string|max:100',
             'state_code' => 'nullable|string|size:2',
             'pincode'    => 'nullable|string|max:10',
+            'bank_name'           => 'nullable|string|max:120',
+            'bank_account_number' => 'nullable|string|max:34',
+            'bank_ifsc'           => 'nullable|string|max:15',
+            'bank_account_holder' => 'nullable|string|max:120',
+            'upi_id'              => 'nullable|string|max:120',
         ]);
 
         $data['gstin'] = $data['gstin'] ? strtoupper(trim($data['gstin'])) : null;
         $data['pan']   = $data['pan'] ? strtoupper(trim($data['pan'])) : null;
+        $data['bank_ifsc'] = $data['bank_ifsc'] ? strtoupper(trim($data['bank_ifsc'])) : null;
+        $data['bank_account_number'] = $data['bank_account_number']
+            ? preg_replace('/[^0-9A-Za-z]/', '', $data['bank_account_number']) : null;
         // Keep the state code in step with the GSTIN when it wasn't set explicitly.
         if (empty($data['state_code']) && $data['gstin']) {
             $data['state_code'] = substr($data['gstin'], 0, 2);

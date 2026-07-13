@@ -57,6 +57,32 @@
         </div>
     </div>
 
+    {{-- Bank / payment details --}}
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <i class="fa fa-building-columns text-navy-500"></i>
+                <h3 class="font-semibold text-gray-800 text-sm">Bank &amp; payment details</h3>
+            </div>
+            @if($party->hasBankDetails())
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700"><i class="fa fa-check mr-1"></i>Ready for payments</span>
+            @else
+                <a href="{{ route('accounting.parties.edit', $party) }}" class="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700 hover:bg-amber-200"><i class="fa fa-plus mr-1"></i>Add for payment files</a>
+            @endif
+        </div>
+        @if($party->hasBankDetails() || $party->bank_name || $party->upi_id)
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-2 text-sm">
+            <div class="flex gap-2"><dt class="text-gray-400 w-28">Account holder</dt><dd class="text-gray-700">{{ $party->bank_account_holder ?: $party->name }}</dd></div>
+            <div class="flex gap-2"><dt class="text-gray-400 w-28">Bank</dt><dd class="text-gray-700">{{ $party->bank_name ?: '—' }}</dd></div>
+            <div class="flex gap-2"><dt class="text-gray-400 w-28">Account no.</dt><dd class="font-mono text-gray-700">{{ $party->bank_account_number ?: '—' }}</dd></div>
+            <div class="flex gap-2"><dt class="text-gray-400 w-28">IFSC</dt><dd class="font-mono text-gray-700">{{ $party->bank_ifsc ?: '—' }}</dd></div>
+            <div class="flex gap-2"><dt class="text-gray-400 w-28">UPI</dt><dd class="text-gray-700">{{ $party->upi_id ?: '—' }}</dd></div>
+        </dl>
+        @else
+        <p class="text-sm text-gray-400">No bank details captured yet. The AI fills these from scanned bills, or add them manually to include this contact in bank payment files.</p>
+        @endif
+    </div>
+
     {{-- Branches / additional GST registrations --}}
     @if($party->branches->isNotEmpty())
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">

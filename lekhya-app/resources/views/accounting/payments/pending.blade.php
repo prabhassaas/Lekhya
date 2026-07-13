@@ -22,10 +22,18 @@
                 <i class="fa fa-arrow-down-to-bracket mr-1"></i>To Receive (Sales)
             </a>
         </div>
-        <a href="{{ route('accounting.payments.export', ['direction' => $direction]) }}"
-           class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg">
-            <i class="fa fa-file-csv mr-1.5"></i>Export CSV
-        </a>
+        <div class="flex gap-2">
+            @if($isPayable)
+            <a href="{{ route('accounting.payments.bankfile') }}"
+               class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">
+                <i class="fa fa-building-columns mr-1.5"></i>Bank payment file
+            </a>
+            @endif
+            <a href="{{ route('accounting.payments.export', ['direction' => $direction]) }}"
+               class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg">
+                <i class="fa fa-file-csv mr-1.5"></i>Export CSV
+            </a>
+        </div>
     </div>
 
     {{-- Summary cards --}}

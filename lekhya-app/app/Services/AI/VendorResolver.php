@@ -106,6 +106,12 @@ class VendorResolver
             'address' => $ex["{$role}_address"] ?? null,
             'email'   => $ex["{$role}_email"]   ?? null,
             'phone'   => $ex["{$role}_phone"]   ?? null,
+            // Bank/UPI details are printed for the seller (their collection account).
+            'bank_name'           => $ex["{$role}_bank_name"]      ?? null,
+            'bank_account_number' => $ex["{$role}_bank_account"]   ?? null,
+            'bank_ifsc'           => $ex["{$role}_bank_ifsc"]      ?? null,
+            'bank_account_holder' => $ex["{$role}_account_holder"] ?? null,
+            'upi_id'              => $ex["{$role}_upi"]            ?? null,
         ];
     }
 
