@@ -5,8 +5,11 @@
 @section('content')
 @php
     $hsnRates = ($hsnCodes ?? collect())->keyBy('code')->map(fn($h) => ['cgst' => (float) $h->cgst_rate, 'sgst' => (float) $h->sgst_rate, 'igst' => (float) $h->igst_rate]);
-    $partyStates = ($parties ?? collect())->keyBy('id')->map(fn($p) => $p->state_code);
-    $supplierState = ($tenant ?? null)?->state_code;
+    // State from the field, else the GSTIN's first two digits — a blank tenant
+    // state must not make everything look interstate.
+    $stateOf = fn($code, $gstin) => trim((string) $code) ?: (strlen(trim((string) $gstin)) >= 2 ? substr(trim((string) $gstin), 0, 2) : null);
+    $partyStates = ($parties ?? collect())->keyBy('id')->map(fn($p) => $stateOf($p->state_code, $p->gstin));
+    $supplierState = $stateOf(($tenant ?? null)?->state_code, ($tenant ?? null)?->gstin);
     $prefill = $prefill ?? null;
     $initLines = $prefill['lines'] ?? [['description' => '', 'hsn_sac_code' => '', 'quantity' => 1, 'rate' => '', 'discount_percent' => 0]];
     $amberFields = collect($prefill['validation']['fields'] ?? [])->filter(fn($f) => $f['status'] === 'amber');
@@ -84,6 +87,10 @@
                     <input type="hidden" name="party_branch_id" value="{{ $prefill['party_branch_id'] }}">
                     <p class="text-xs text-navy-600 mt-1"><i class="fa fa-code-branch mr-1"></i>Booked to branch: <strong>{{ $prefill['branch_label'] ?: 'Branch' }}</strong>{{ ($prefill['branch_gstin'] ?? null) ? ' · '.$prefill['branch_gstin'] : '' }}</p>
                     @endif
+                    <p class="text-xs text-gray-400 mt-1" x-show="partyId" x-cloak>
+                        Name or GSTIN wrong?
+                        <a :href="'{{ url('accounting/parties') }}/' + partyId + '/edit'" target="_blank" class="text-navy-600 hover:underline">Edit {{ ($type ?? 'sales') === 'purchase' ? 'vendor' : 'customer' }} details →</a>
+                    </p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">{{ ($type ?? 'sales') === 'purchase' ? 'Vendor Bill / Invoice No.' : 'Reference No.' }}</label>

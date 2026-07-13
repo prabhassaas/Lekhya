@@ -45,6 +45,43 @@ class PartyController extends Controller
         return view('accounting.parties.show', compact('party', 'invoices', 'outstanding', 'billed'));
     }
 
+    public function edit(Party $party)
+    {
+        abort_if($party->tenant_id !== auth()->user()->tenant_id, 403);
+        return view('accounting.parties.edit', compact('party'));
+    }
+
+    public function update(Request $request, Party $party)
+    {
+        abort_if($party->tenant_id !== auth()->user()->tenant_id, 403);
+
+        $data = $request->validate([
+            'name'       => 'required|string|max:255',
+            'type'       => 'required|in:vendor,customer,both',
+            'gstin'      => 'nullable|string|size:15',
+            'pan'        => 'nullable|string|size:10',
+            'email'      => 'nullable|email|max:255',
+            'phone'      => 'nullable|string|max:15',
+            'address'    => 'nullable|string|max:255',
+            'city'       => 'nullable|string|max:100',
+            'state'      => 'nullable|string|max:100',
+            'state_code' => 'nullable|string|size:2',
+            'pincode'    => 'nullable|string|max:10',
+        ]);
+
+        $data['gstin'] = $data['gstin'] ? strtoupper(trim($data['gstin'])) : null;
+        $data['pan']   = $data['pan'] ? strtoupper(trim($data['pan'])) : null;
+        // Keep the state code in step with the GSTIN when it wasn't set explicitly.
+        if (empty($data['state_code']) && $data['gstin']) {
+            $data['state_code'] = substr($data['gstin'], 0, 2);
+        }
+        $data['is_active'] = $request->boolean('is_active');
+
+        $party->update($data);
+
+        return redirect()->route('accounting.parties.show', $party)->with('success', "“{$party->name}” updated.");
+    }
+
     public function destroy(Party $party)
     {
         abort_if($party->tenant_id !== auth()->user()->tenant_id, 403);

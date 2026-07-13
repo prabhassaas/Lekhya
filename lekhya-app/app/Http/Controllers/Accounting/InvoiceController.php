@@ -152,9 +152,13 @@ class InvoiceController extends Controller {
             : null;
         $validated['party_branch_id'] = $branch?->id; // ignore a mismatched branch
 
-        $supplierState = $tenant->state_code ?? '';
-        $buyerState = ($branch?->state_code ?: $party->state_code) ?: $supplierState;
-        $isInterstate = $supplierState !== $buyerState;
+        // State codes drive IGST vs CGST/SGST. Fall back to the first two digits
+        // of the GSTIN when the state field is blank — otherwise a missing tenant
+        // state makes every bill look "interstate".
+        $supplierState = $this->stateOf($tenant->state_code, $tenant->gstin);
+        $partyState    = $this->stateOf($branch?->state_code ?: $party->state_code, $branch?->gstin ?: $party->gstin);
+        $buyerState    = $partyState ?: $supplierState;
+        $isInterstate  = $supplierState !== '' && $buyerState !== '' && $supplierState !== $buyerState;
 
         $subtotal = 0; $taxableTotal = 0; $cgstTotal = 0; $sgstTotal = 0; $igstTotal = 0;
         $computedLines = [];
@@ -276,6 +280,14 @@ class InvoiceController extends Controller {
         if ($invoice->isLocked()) return back()->with('error', 'Cannot delete a posted invoice.');
         $invoice->delete();
         return redirect()->route('accounting.invoices.index')->with('success', 'Invoice deleted.');
+    }
+
+    /** State code from the field, or the first 2 digits of the GSTIN as a fallback. */
+    private function stateOf(?string $stateCode, ?string $gstin): string {
+        $s = trim((string) $stateCode);
+        if ($s !== '') return $s;
+        $g = trim((string) $gstin);
+        return strlen($g) >= 2 ? substr($g, 0, 2) : '';
     }
 
     /** Total GST rate for an HSN/SAC from the master — exact code, then 4-digit chapter. */

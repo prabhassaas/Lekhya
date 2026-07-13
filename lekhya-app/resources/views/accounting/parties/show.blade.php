@@ -10,13 +10,18 @@
            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
             <i class="fa fa-arrow-left mr-1.5"></i>Back to list
         </a>
-        <form method="POST" action="{{ route('accounting.parties.destroy', $party) }}"
-              onsubmit="return confirm('Delete “{{ $party->name }}”? This cannot be undone.');">
-            @csrf @method('DELETE')
-            <button type="submit" class="inline-flex items-center text-sm text-red-600 hover:text-red-700 font-medium">
-                <i class="fa fa-trash mr-1.5"></i>Delete
-            </button>
-        </form>
+        <div class="flex items-center gap-4">
+            <a href="{{ route('accounting.parties.edit', $party) }}" class="inline-flex items-center text-sm text-navy-600 hover:text-navy-700 font-medium">
+                <i class="fa fa-pen mr-1.5"></i>Edit
+            </a>
+            <form method="POST" action="{{ route('accounting.parties.destroy', $party) }}"
+                  onsubmit="return confirm('Delete “{{ $party->name }}”? This cannot be undone.');">
+                @csrf @method('DELETE')
+                <button type="submit" class="inline-flex items-center text-sm text-red-600 hover:text-red-700 font-medium">
+                    <i class="fa fa-trash mr-1.5"></i>Delete
+                </button>
+            </form>
+        </div>
     </div>
 
     {{-- Header card --}}

@@ -75,7 +75,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         // Parties (vendors & customers) — export must precede the {party} route.
         Route::get('parties', [PartyController::class, 'index'])->name('parties.index');
         Route::get('parties/export', [PartyController::class, 'export'])->name('parties.export');
+        Route::get('parties/{party}/edit', [PartyController::class, 'edit'])->name('parties.edit');
         Route::get('parties/{party}', [PartyController::class, 'show'])->name('parties.show');
+        Route::put('parties/{party}', [PartyController::class, 'update'])->name('parties.update');
         Route::delete('parties/{party}', [PartyController::class, 'destroy'])->name('parties.destroy');
 
         // Pending payments (payables / receivables) from recorded bills.
