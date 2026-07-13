@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('title', 'New Invoice')
-@section('page-title', 'New ' . (($type ?? 'sales') === 'sales' ? 'Sales' : 'Purchase') . ' Invoice')
+@section('title', ($editing ?? false) ? 'Edit Invoice' : 'New Invoice')
+@section('page-title', (($editing ?? false) ? 'Edit ' : 'New ') . (($type ?? 'sales') === 'sales' ? 'Sales' : 'Purchase') . ' Invoice')
 
 @section('content')
 @php
@@ -16,7 +16,7 @@
     $failedChecks = collect($prefill['validation']['checks'] ?? [])->filter(fn($c) => ! $c['ok']);
 @endphp
 
-@if($prefill)
+@if($prefill && !($editing ?? false))
 <div class="max-w-5xl mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
     <div class="flex items-start gap-3">
         <i class="fa fa-wand-magic-sparkles text-amber-600 mt-0.5"></i>
@@ -70,8 +70,9 @@
         inWords(n) { return window.amountInWords(n); },
      }">
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-        <form method="POST" action="{{ route('accounting.invoices.store') }}">
+        <form method="POST" action="{{ ($editing ?? false) ? route('accounting.invoices.update', $invoice) : route('accounting.invoices.store') }}">
             @csrf
+            @if($editing ?? false) @method('PUT') @endif
             <input type="hidden" name="type" value="{{ $type ?? 'sales' }}">
 
             <div class="grid grid-cols-2 gap-4 mb-5">
@@ -208,7 +209,7 @@
             <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-6">
                 <a href="{{ route('accounting.invoices.index', ['type' => $type ?? 'sales']) }}" class="px-5 py-2.5 text-gray-600 text-sm font-medium hover:text-gray-900">Cancel</a>
                 <button type="submit" class="px-5 py-2.5 bg-navy-600 hover:bg-navy-700 text-white text-sm font-semibold rounded-lg">
-                    Save as Draft
+                    {{ ($editing ?? false) ? 'Save Changes' : 'Save as Draft' }}
                 </button>
             </div>
         </form>

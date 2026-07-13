@@ -17,6 +17,9 @@
         </div>
         <div class="flex gap-2">
             @if($invoice->status === 'draft')
+            <a href="{{ route('accounting.invoices.edit', $invoice) }}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
+                <i class="fa fa-pen mr-1.5"></i>Edit
+            </a>
             <form method="POST" action="{{ route('accounting.invoices.post', $invoice) }}" onsubmit="return confirm('Post this invoice to the ledger? This cannot be undone.');">
                 @csrf
                 <button class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">

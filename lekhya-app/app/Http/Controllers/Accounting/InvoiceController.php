@@ -123,7 +123,98 @@ class InvoiceController extends Controller {
 
     public function store(Request $request) {
         $tenantId = auth()->user()->tenant_id;
-        $validated = $request->validate([
+        $validated = $request->validate($this->rules());
+        $tenant = auth()->user()->tenant;
+        $party = Party::where('tenant_id', $tenantId)->findOrFail($validated['party_id']);
+        $fiscalYear = FiscalYear::where('tenant_id', $tenantId)->where('is_current', true)->firstOrFail();
+
+        $c = $this->computeInvoice($validated, $request->input('lines', []), $tenant, $party);
+
+        $invoice = Invoice::create(array_merge($validated, $c['header'], [
+            'tenant_id' => $tenantId,
+            'fiscal_year_id' => $fiscalYear->id,
+            'invoice_number' => $this->nextNumber($tenantId, $validated['type']),
+            'status' => 'draft',
+            'created_by' => auth()->id(),
+        ]));
+
+        $this->syncLines($invoice, $c['lines'], $tenantId);
+        $this->learnFromLines($tenantId, $c['lines']);
+
+        return redirect()->route('accounting.invoices.show', $invoice)->with('success', 'Invoice created.');
+    }
+
+    public function show(Invoice $invoice) {
+        $this->authorize('view', $invoice);
+        return view('accounting.invoices.show', compact('invoice'));
+    }
+
+    public function edit(Invoice $invoice) {
+        $this->authorize('view', $invoice);
+        if ($invoice->isLocked()) return redirect()->route('accounting.invoices.show', $invoice)->with('error', 'A posted invoice is locked — reverse it with a credit/debit note to change it.');
+
+        $tenantId = auth()->user()->tenant_id;
+        $type = $invoice->type;
+        $tenant = auth()->user()->tenant;
+        $parties = Party::where('tenant_id', $tenantId)->where('is_active', true)->get();
+        $accounts = Account::where('tenant_id', $tenantId)->where('is_ledger', true)->get();
+        $hsnCodes = HsnSacCode::limit(200)->get();
+        $fiscalYear = FiscalYear::where('tenant_id', $tenantId)->where('is_current', true)->first();
+        $editing = true;
+
+        // Reuse the create form by feeding it the invoice's own values as prefill.
+        $prefill = [
+            'party_id'         => $invoice->party_id,
+            'party_name'       => $invoice->party->name ?? '',
+            'party_gstin'      => $invoice->party->gstin ?? null,
+            'party_matched'    => true,
+            'party_branch_id'  => $invoice->party_branch_id,
+            'branch_label'     => $invoice->branch->label ?? null,
+            'branch_gstin'     => $invoice->branch->gstin ?? null,
+            'reference_number' => $invoice->reference_number,
+            'invoice_date'     => optional($invoice->invoice_date)->format('Y-m-d'),
+            'due_date'         => optional($invoice->due_date)->format('Y-m-d'),
+            'notes'            => $invoice->notes,
+            'lines'            => $invoice->lines->map(fn ($l) => [
+                'description'      => $l->description,
+                'hsn_sac_code'     => (string) $l->hsn_sac_code,
+                'quantity'         => (float) $l->quantity,
+                'unit'             => $l->unit ?: 'nos',
+                'rate'             => (float) $l->rate,
+                'discount_percent' => (float) $l->discount_percent,
+                'gst_rate'         => (float) ($l->cgst_rate + $l->sgst_rate + $l->igst_rate),
+            ])->values()->all(),
+            'validation'       => null,
+        ];
+
+        return view('accounting.invoices.form', compact('parties', 'accounts', 'hsnCodes', 'type', 'fiscalYear', 'tenant', 'prefill', 'editing', 'invoice'));
+    }
+
+    public function update(Request $request, Invoice $invoice) {
+        $this->authorize('view', $invoice);
+        if ($invoice->isLocked()) return redirect()->route('accounting.invoices.show', $invoice)->with('error', 'A posted invoice is locked and cannot be edited.');
+
+        $tenantId = auth()->user()->tenant_id;
+        $validated = $request->validate($this->rules());
+        $tenant = auth()->user()->tenant;
+        $party = Party::where('tenant_id', $tenantId)->findOrFail($validated['party_id']);
+
+        // Keep the original number/type — editing a draft never re-numbers it.
+        unset($validated['type']);
+        $c = $this->computeInvoice($validated, $request->input('lines', []), $tenant, $party);
+
+        $invoice->update(array_merge($validated, $c['header'], [
+            'balance_amount' => $c['header']['total_amount'], // unpaid draft
+        ]));
+        $this->syncLines($invoice, $c['lines'], $tenantId);
+        $this->learnFromLines($tenantId, $c['lines']);
+
+        return redirect()->route('accounting.invoices.show', $invoice)->with('success', 'Invoice updated.');
+    }
+
+    /** Validation rules shared by store() and update(). */
+    private function rules(): array {
+        return [
             'type' => 'required|in:sales,purchase',
             'party_id' => 'required|exists:parties,id',
             'party_branch_id' => 'nullable|integer|exists:party_branches,id',
@@ -139,12 +230,15 @@ class InvoiceController extends Controller {
             'lines.*.rate' => 'required|numeric|min:0',
             'lines.*.discount_percent' => 'nullable|numeric|min:0|max:100',
             'lines.*.gst_rate' => 'nullable|numeric|min:0|max:100',
-        ]);
-        $tenant = auth()->user()->tenant;
-        $party = Party::findOrFail($validated['party_id']);
-        $fiscalYear = FiscalYear::where('tenant_id', $tenantId)->where('is_current', true)->firstOrFail();
-        $lines = $request->input('lines', []);
+        ];
+    }
 
+    /**
+     * Compute per-line tax + header totals. Mutates $validated to pin a valid
+     * branch. Returns ['lines' => computed line rows, 'header' => invoice totals].
+     */
+    private function computeInvoice(array &$validated, array $lines, $tenant, Party $party): array {
+        $tenantId = $tenant->id;
         // A bill can be booked against a branch (a different GST registration of
         // the same vendor) — its state, not the parent's, drives the GST split.
         $branch = ! empty($validated['party_branch_id'])
@@ -153,8 +247,7 @@ class InvoiceController extends Controller {
         $validated['party_branch_id'] = $branch?->id; // ignore a mismatched branch
 
         // State codes drive IGST vs CGST/SGST. Fall back to the first two digits
-        // of the GSTIN when the state field is blank — otherwise a missing tenant
-        // state makes every bill look "interstate".
+        // of the GSTIN when the state field is blank.
         $supplierState = $this->stateOf($tenant->state_code, $tenant->gstin);
         $partyState    = $this->stateOf($branch?->state_code ?: $party->state_code, $branch?->gstin ?: $party->gstin);
         $buyerState    = $partyState ?: $supplierState;
@@ -166,9 +259,8 @@ class InvoiceController extends Controller {
             $gross = $line['quantity'] * $line['rate'];
             $taxable = round($gross * (1 - ($line['discount_percent'] ?? 0) / 100), 4);
 
-            // Honour the bill's own GST rate when it was captured (e.g. a scanned
-            // vendor bill), so the recorded tax matches the bill exactly. Fall
-            // back to the HSN rate engine for manually-entered lines.
+            // Honour the line's own GST rate when set, so the recorded tax matches
+            // the bill. Fall back to the HSN rate engine otherwise.
             $billRate = isset($line['gst_rate']) && is_numeric($line['gst_rate']) ? (float) $line['gst_rate'] : 0.0;
             if ($billRate > 0) {
                 $rates = [
@@ -204,59 +296,39 @@ class InvoiceController extends Controller {
         $totalTax = $cgstTotal + $sgstTotal + $igstTotal;
         $totalAmount = round($taxableTotal + $totalTax, 2);
 
-        $invoice = Invoice::create(array_merge($validated, [
-            'tenant_id' => $tenantId,
-            'fiscal_year_id' => $fiscalYear->id,
-            'invoice_number' => $this->nextNumber($tenantId, $validated['type']),
-            'status' => 'draft',
-            'place_of_supply' => $buyerState,
-            'is_interstate' => $isInterstate,
-            'subtotal' => $subtotal,
-            'taxable_amount' => $taxableTotal,
-            'cgst_amount' => $cgstTotal,
-            'sgst_amount' => $sgstTotal,
-            'igst_amount' => $igstTotal,
-            'total_tax' => $totalTax,
-            'total_amount' => $totalAmount,
-            'balance_amount' => $totalAmount,
-            'created_by' => auth()->id(),
-        ]));
+        return [
+            'lines' => $computedLines,
+            'header' => [
+                'place_of_supply' => $buyerState,
+                'is_interstate'   => $isInterstate,
+                'subtotal'        => $subtotal,
+                'taxable_amount'  => $taxableTotal,
+                'cgst_amount'     => $cgstTotal,
+                'sgst_amount'     => $sgstTotal,
+                'igst_amount'     => $igstTotal,
+                'total_tax'       => $totalTax,
+                'total_amount'    => $totalAmount,
+                'balance_amount'  => $totalAmount,
+            ],
+        ];
+    }
 
+    /** Replace the invoice's line rows with the freshly computed set. */
+    private function syncLines(Invoice $invoice, array $computedLines, int $tenantId): void {
+        $invoice->lines()->delete();
         foreach ($computedLines as $i => $line) {
-            $invoice->lines()->create(array_merge($line, [
-                'tenant_id' => $tenantId,
-                'line_order' => $i,
-            ]));
+            $invoice->lines()->create(array_merge($line, ['tenant_id' => $tenantId, 'line_order' => $i]));
         }
+    }
 
-        // Learn each product's HSN + effective GST rate from this confirmed bill,
-        // so the next scan of the same item auto-fills those fields.
+    /** Remember each product's HSN + effective GST rate for future scans. */
+    private function learnFromLines(int $tenantId, array $computedLines): void {
         foreach ($computedLines as $line) {
             if (! empty($line['description'])) {
                 $rate = (float) (($line['cgst_rate'] ?? 0) + ($line['sgst_rate'] ?? 0) + ($line['igst_rate'] ?? 0));
                 TenantItem::learn($tenantId, $line['description'], $line['hsn_sac_code'] ?? null, $rate, $line['unit'] ?? null);
             }
         }
-
-        return redirect()->route('accounting.invoices.show', $invoice)->with('success', 'Invoice created.');
-    }
-
-    public function show(Invoice $invoice) {
-        $this->authorize('view', $invoice);
-        return view('accounting.invoices.show', compact('invoice'));
-    }
-
-    public function edit(Invoice $invoice) {
-        if ($invoice->isLocked()) return back()->with('error', 'Cannot edit a posted invoice.');
-        $tenantId = auth()->user()->tenant_id;
-        $parties = Party::where('tenant_id', $tenantId)->get();
-        return view('accounting.invoices.form', compact('invoice', 'parties'));
-    }
-
-    public function update(Request $request, Invoice $invoice) {
-        if ($invoice->isLocked()) return back()->with('error', 'Cannot edit a posted invoice.');
-        // update logic similar to store
-        return redirect()->route('accounting.invoices.show', $invoice)->with('success', 'Invoice updated.');
     }
 
     public function post(Invoice $invoice) {
