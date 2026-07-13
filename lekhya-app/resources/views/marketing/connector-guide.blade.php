@@ -150,11 +150,12 @@
         </div>
         <div class="flex-1">
           <p class="font-semibold text-navy-900">You're signed in as {{ auth()->user()->name }}</p>
+          @php $planName = trim((string) ($entitlement->plan ?? '')); @endphp
           @if($entitlement)
-            @if($entitlement->plan?->slug === 'solo' || $entitlement->plan?->name === 'Solo')
+            @if(strtolower($planName) === 'solo')
               <p class="text-sm text-gray-600 mt-1">You're on the <strong>Solo plan</strong> — Option A (same-account sync) is included. Go to <a href="{{ route('connector.index') }}" class="text-navy-600 font-medium underline">Connector</a> to enable it.</p>
             @else
-              <p class="text-sm text-gray-600 mt-1">You're on the <strong>{{ $entitlement->plan?->name ?? 'current' }} plan</strong>. Both connection options are available. <a href="{{ route('connector.index') }}" class="text-navy-600 font-medium underline">Go to Connector →</a></p>
+              <p class="text-sm text-gray-600 mt-1">You're on the <strong>{{ $planName !== '' ? ucfirst($planName) : 'current' }} plan</strong>. Both connection options are available. <a href="{{ route('connector.index') }}" class="text-navy-600 font-medium underline">Go to Connector →</a></p>
             @endif
           @else
             <p class="text-sm text-gray-600 mt-1">Start a free trial to try the connector. <a href="{{ route('settings.billing') }}" class="text-navy-600 font-medium underline">View plans →</a></p>
