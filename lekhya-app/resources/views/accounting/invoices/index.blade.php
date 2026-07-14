@@ -6,10 +6,15 @@
 <div class="py-4 space-y-6" x-data="{ scanOpen: false }">
     <div class="flex items-center justify-between">
         <div class="flex gap-2">
+            @php $isCancelledView = ($view ?? null) === 'cancelled'; @endphp
             <a href="{{ route('accounting.invoices.index', ['type' => 'sales']) }}"
-               class="px-3 py-1.5 text-sm font-medium rounded-lg {{ $type === 'sales' ? 'bg-navy-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">Sales</a>
+               class="px-3 py-1.5 text-sm font-medium rounded-lg {{ !$isCancelledView && $type === 'sales' ? 'bg-navy-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">Sales</a>
             <a href="{{ route('accounting.invoices.index', ['type' => 'purchase']) }}"
-               class="px-3 py-1.5 text-sm font-medium rounded-lg {{ $type === 'purchase' ? 'bg-navy-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">Purchase</a>
+               class="px-3 py-1.5 text-sm font-medium rounded-lg {{ !$isCancelledView && $type === 'purchase' ? 'bg-navy-600 text-white' : 'text-gray-600 hover:bg-gray-100' }}">Purchase</a>
+            <a href="{{ route('accounting.invoices.index', ['view' => 'cancelled']) }}"
+               class="px-3 py-1.5 text-sm font-medium rounded-lg {{ $isCancelledView ? 'bg-red-600 text-white' : 'text-gray-500 hover:bg-gray-100' }}">
+                Cancelled / Reversed @if(($cancelledCount ?? 0) > 0)<span class="ml-1 text-xs opacity-80">({{ $cancelledCount }})</span>@endif
+            </a>
         </div>
         <div class="flex items-center gap-2">
             <button type="button" @click="scanOpen = true" class="px-4 py-2 border border-amber-300 text-amber-700 hover:bg-amber-50 text-sm font-medium rounded-lg">
@@ -62,7 +67,7 @@
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
                     <th class="text-left px-5 py-2.5">Invoice #</th>
-                    <th class="text-left px-5 py-2.5">{{ $type === 'purchase' ? 'Vendor Bill #' : 'Ref #' }}</th>
+                    <th class="text-left px-5 py-2.5">{{ ($view ?? null) === 'cancelled' ? 'Ref / Bill #' : ($type === 'purchase' ? 'Vendor Bill #' : 'Ref #') }}</th>
                     <th class="text-left px-5 py-2.5">Party</th>
                     <th class="text-left px-5 py-2.5">Type</th>
                     <th class="text-left px-5 py-2.5">Date</th>
@@ -98,8 +103,12 @@
                 @empty
                 <tr>
                     <td colspan="8" class="px-5 py-10 text-center text-gray-400">
+                        @if(($view ?? null) === 'cancelled')
+                        No cancelled or reversed bills.
+                        @else
                         No {{ $type }} invoices yet.
                         <a href="{{ route('accounting.invoices.create', ['type' => $type]) }}" class="text-blue-600 hover:underline">Create one →</a>
+                        @endif
                     </td>
                 </tr>
                 @endforelse

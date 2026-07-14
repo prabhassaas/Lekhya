@@ -40,11 +40,19 @@
             </a>
         </div>
 
-        {{-- Trial badge --}}
-        @php $entitlement = auth()->user()->tenant?->entitlements()->where('app','lekhya')->where('is_active',true)->first(); @endphp
-        @if($entitlement && $entitlement->trial_ends_at && $entitlement->trial_ends_at->isFuture())
+        {{-- Trial badge — precise day/hour countdown --}}
+        @php
+            $entitlement = auth()->user()->tenant?->entitlements()->where('app','lekhya')->where('is_active',true)->first();
+            $trialEnd = $entitlement?->trial_ends_at;
+            $tDays  = $trialEnd ? (int) now()->startOfDay()->diffInDays($trialEnd->copy()->startOfDay(), false) : 0;
+            $tHours = $trialEnd ? (int) now()->diffInHours($trialEnd, false) : 0;
+        @endphp
+        @if($trialEnd && $trialEnd->isFuture())
         <div class="mx-3 mt-3 px-3 py-2 bg-amber-500 bg-opacity-20 rounded-lg border border-amber-400">
-            <p class="text-amber-200 text-xs font-medium">Trial: {{ $entitlement->trial_ends_at->diffForHumans() }} left</p>
+            <p class="text-amber-200 text-xs font-medium">
+                Trial: {{ $tDays >= 1 ? $tDays.' day'.($tDays == 1 ? '' : 's') : max(1, $tHours).' hour'.($tHours == 1 ? '' : 's') }} left
+            </p>
+            <p class="text-amber-200 text-[10px] opacity-70 mt-0.5">ends {{ $trialEnd->format('d M Y') }}</p>
         </div>
         @endif
 
@@ -175,36 +183,6 @@
             </a>
         </nav>
 
-        {{-- Bottom: User + Settings --}}
-        <div class="border-t border-navy-500 p-3">
-            <a href="https://prabhassaas.in" target="_blank" rel="noopener"
-               class="nav-link mb-1" style="color:#7fa0c9;font-size:0.78rem;letter-spacing:.01em">
-                <i class="fa fa-house w-5" style="font-size:0.75rem"></i>
-                <span>Prabhas SaaS Home</span>
-                <i class="fa fa-arrow-up-right-from-square ml-auto" style="font-size:0.65rem;opacity:.5"></i>
-            </a>
-            <a href="{{ route('settings.index') }}" class="nav-link">
-                <i class="fa fa-gear w-5"></i> <span>Settings</span>
-            </a>
-            <a href="{{ route('marketing.help') }}" target="_blank" class="nav-link">
-                <i class="fa fa-circle-question w-5"></i> <span>Help & Docs</span>
-            </a>
-            <div class="mt-2 flex items-center space-x-2 px-2 py-2 rounded-lg bg-navy-700">
-                <div class="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-white text-sm font-bold">
-                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-white text-sm font-medium truncate">{{ auth()->user()->name }}</p>
-                    <p class="text-navy-300 text-xs truncate">{{ auth()->user()->tenant?->name }}</p>
-                </div>
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="text-navy-300 hover:text-white">
-                        <i class="fa fa-right-from-bracket"></i>
-                    </button>
-                </form>
-            </div>
-        </div>
     </aside>
 
     {{-- Main content --}}
@@ -306,6 +284,31 @@
             </a>
 
             <span class="hidden lg:block text-sm text-gray-500 shrink-0">{{ now()->format('d M Y') }}</span>
+
+            {{-- User / avatar menu (moved off the sidebar) --}}
+            <div class="relative shrink-0" x-data="{ userMenu: false }" @click.outside="userMenu = false" @keydown.escape="userMenu = false">
+                <button @click="userMenu = !userMenu" class="flex items-center gap-2 rounded-lg hover:bg-gray-50 px-1.5 py-1">
+                    <div class="w-8 h-8 rounded-full bg-navy-600 text-white flex items-center justify-center text-sm font-bold shrink-0">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
+                    <div class="hidden md:block text-left leading-tight max-w-[9rem]">
+                        <p class="text-sm font-medium text-gray-800 truncate">{{ auth()->user()->name }}</p>
+                        <p class="text-xs text-gray-400 truncate">{{ auth()->user()->tenant?->name }}</p>
+                    </div>
+                    <i class="fa fa-chevron-down text-xs text-gray-400"></i>
+                </button>
+                <div x-show="userMenu" x-cloak x-transition class="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden z-50">
+                    <div class="px-4 py-3 border-b border-gray-100 md:hidden">
+                        <p class="text-sm font-medium text-gray-800 truncate">{{ auth()->user()->name }}</p>
+                        <p class="text-xs text-gray-400 truncate">{{ auth()->user()->tenant?->name }}</p>
+                    </div>
+                    <a href="{{ route('settings.index') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><i class="fa fa-gear w-4 text-gray-400"></i>Settings</a>
+                    <a href="{{ route('marketing.help') }}" target="_blank" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><i class="fa fa-circle-question w-4 text-gray-400"></i>Help &amp; Docs</a>
+                    <a href="https://prabhassaas.in" target="_blank" rel="noopener" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><i class="fa fa-house w-4 text-gray-400"></i>Prabhas SaaS Home<i class="fa fa-arrow-up-right-from-square ml-auto text-[10px] text-gray-300"></i></a>
+                    <form method="POST" action="{{ route('logout') }}" class="border-t border-gray-100">
+                        @csrf
+                        <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"><i class="fa fa-right-from-bracket w-4"></i>Log out</button>
+                    </form>
+                </div>
+            </div>
         </header>
 
         {{-- Impersonation banner --}}
@@ -378,6 +381,12 @@
 .nav-link { display:flex; align-items:center; gap:0.625rem; padding:0.5rem 0.75rem; border-radius:0.5rem; font-size:0.875rem; color:#b3c4df; transition:background-color 0.15s, color 0.15s; }
 .nav-link:hover, .nav-link.active { background-color:rgba(255,255,255,0.1); color:#fff; }
 [x-cloak] { display:none; }
+/* Sidebar scrollbar — themed to the navy panel, not default white/grey */
+#sidebar-nav { scrollbar-width: thin; scrollbar-color: #2e5a94 transparent; }
+#sidebar-nav::-webkit-scrollbar { width: 8px; }
+#sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+#sidebar-nav::-webkit-scrollbar-thumb { background: #2e5a94; border-radius: 99px; }
+#sidebar-nav::-webkit-scrollbar-thumb:hover { background: #4f7ab0; }
 </style>
 
 <script>

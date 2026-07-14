@@ -65,9 +65,9 @@
                         @unless($p->is_active)<span class="ml-1 text-xs text-gray-400">(inactive)</span>@endunless
                     </td>
                     <td class="px-5 py-3">
-                        <span class="text-xs px-2 py-0.5 rounded-full font-medium
-                            {{ $p->type === 'vendor' ? 'bg-amber-100 text-amber-700' : ($p->type === 'customer' ? 'bg-teal-100 text-teal-700' : 'bg-purple-100 text-purple-700') }}">
-                            {{ ucfirst($p->type) }}
+                        @php $pc = $p->classificationColor(); @endphp
+                        <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-{{ $pc }}-100 text-{{ $pc }}-700">
+                            {{ $p->classificationLabel() }}
                         </span>
                     </td>
                     <td class="px-5 py-3 font-mono text-xs text-gray-600">{{ $p->gstin ?: '—' }}</td>

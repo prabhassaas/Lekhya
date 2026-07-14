@@ -14,13 +14,22 @@ class InvoiceController extends Controller {
 
     public function index(Request $request) {
         $tenantId = auth()->user()->tenant_id;
+        $view = $request->get('view') === 'cancelled' ? 'cancelled' : null;
         $type = $request->get('type', 'sales');
-        $invoices = Invoice::where('tenant_id', $tenantId)
-            ->where('type', $type)
-            ->with('party')
-            ->latest('invoice_date')
-            ->paginate(20);
-        return view('accounting.invoices.index', compact('invoices', 'type'));
+
+        $query = Invoice::where('tenant_id', $tenantId)->with('party');
+        if ($view === 'cancelled') {
+            // Cancelled / reversed bills across both sales & purchase.
+            $query->where('status', 'cancelled')->latest('updated_at');
+        } else {
+            // Live docs only — cancelled ones move to their own tab.
+            $query->where('type', $type)->where('status', '!=', 'cancelled')->latest('invoice_date');
+        }
+
+        $cancelledCount = Invoice::where('tenant_id', $tenantId)->where('status', 'cancelled')->count();
+        $invoices = $query->paginate(20)->withQueryString();
+
+        return view('accounting.invoices.index', compact('invoices', 'type', 'view', 'cancelledCount'));
     }
 
     public function create(Request $request) {

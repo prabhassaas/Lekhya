@@ -169,5 +169,7 @@ jobs:
             php artisan db:seed --class=PlanSeeder --force --no-interaction || true
             php artisan db:seed --class=DemoDataSeeder --force --no-interaction || true
             php artisan db:seed --class=PramaanDemoSeeder --force --no-interaction || true
+            # Classify existing parties (vendor / service_provider) from their bills (idempotent).
+            php artisan db:seed --class=BackfillPartyClassificationSeeder --force --no-interaction || true
             echo "✓ Deployment complete"
 
