@@ -12,8 +12,7 @@
     {{-- Calculator panel --}}
     <div x-show="open" x-ref="panel" x-transition
          :style="panelStyle()"
-         style="position:fixed;right:16px;bottom:16px;z-index:9001;width:190px"
-         class="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden select-none">
+         class="calc-panel bg-white rounded-2xl shadow-2xl border border-gray-200 select-none">
 
         {{-- Draggable header --}}
         <div @mousedown="onDown($event)" @touchstart="onDown($event)"
@@ -102,6 +101,13 @@
 </div>
 
 <style>
+    /* Fixed, compact portrait footprint — width from a class so Alpine's :style
+       binding can't wipe it; capped height keeps it off half the screen. */
+    .calc-panel {
+        position: fixed; right: 16px; bottom: 16px; z-index: 9001;
+        width: clamp(150px, 44vw, 178px);
+        max-height: 82vh; overflow: hidden auto;
+    }
     .calc-key { padding:0.42rem 0; background:#fff; font-size:0.9rem; color:#111827; transition:background .1s; }
     .calc-key:hover { background:#f3f4f6; }
     .calc-key:active { background:#e5e7eb; }
