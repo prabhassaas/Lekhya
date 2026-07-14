@@ -67,26 +67,54 @@ class LekhyaAiDriver implements AiDriverInterface
     /** Plain conversational completion (no JSON mode) — powers the in-app assistant. */
     public function chat(string $system, string $user): string
     {
-        try {
-            $response = Http::timeout(45)->withToken($this->apiKey)->acceptJson()->post(self::ENDPOINT, [
-                'model'       => $this->textModel,
-                'messages'    => [
-                    ['role' => 'system', 'content' => $system],
-                    ['role' => 'user', 'content' => $user],
-                ],
-                'max_tokens'  => 600,
-                'temperature' => 0.3,
-            ]);
+        // The configured text model can be silently decommissioned by the provider,
+        // which 400s every call. Fall through a chain that ends in the vision models
+        // — those are known-good in this deployment (invoice scanning uses them) and
+        // also serve plain-text chat — so the assistant keeps working regardless.
+        $lastStatus = null;
+        $lastBody   = null;
 
-            if ($response->successful()) {
-                return trim((string) $response->json('choices.0.message.content', ''));
+        foreach ($this->chatModelChain() as $model) {
+            try {
+                $response = Http::timeout(45)->withToken($this->apiKey)->acceptJson()->post(self::ENDPOINT, [
+                    'model'       => $model,
+                    'messages'    => [
+                        ['role' => 'system', 'content' => $system],
+                        ['role' => 'user', 'content' => $user],
+                    ],
+                    'max_tokens'  => 600,
+                    'temperature' => 0.3,
+                ]);
+
+                if ($response->successful()) {
+                    $answer = trim((string) $response->json('choices.0.message.content', ''));
+                    if ($answer !== '') {
+                        return $answer;
+                    }
+                } else {
+                    $lastStatus = $response->status();
+                    $lastBody   = substr($response->body(), 0, 300);
+                }
+            } catch (\Throwable $e) {
+                Log::error('AI chat error', ['model' => $model, 'error' => $e->getMessage()]);
             }
-            Log::warning('AI chat failed', ['model' => $this->textModel, 'status' => $response->status(), 'body' => substr($response->body(), 0, 300)]);
-            return '';
-        } catch (\Throwable $e) {
-            Log::error('AI chat error', ['error' => $e->getMessage()]);
-            return '';
         }
+
+        Log::warning('AI chat failed on all models', ['models' => $this->chatModelChain(), 'last_status' => $lastStatus, 'last_body' => $lastBody]);
+        return '';
+    }
+
+    /** Chat model candidates: configured text model first, then the multimodal models
+     *  (scanning proves they are live here) as insurance against a stale text model. */
+    private function chatModelChain(): array
+    {
+        return array_values(array_unique(array_filter([
+            $this->textModel,
+            'llama-3.3-70b-versatile',
+            $this->visionModel,
+            'meta-llama/llama-4-maverick-17b-128e-instruct',
+            'meta-llama/llama-4-scout-17b-16e-instruct',
+        ])));
     }
 
     private function call(array $content, bool $vision = false): array
