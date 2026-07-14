@@ -11,6 +11,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PartyController extends Controller
 {
+    use \App\Http\Controllers\Concerns\SortsListings;
+
     /** Vendors (default), Customers, or All — with search + per-party outstanding. */
     public function index(Request $request)
     {
@@ -18,11 +20,18 @@ class PartyController extends Controller
         $tab      = $this->tab($request);
         $search   = trim((string) $request->get('q', ''));
 
-        $parties = $this->query($tenantId, $tab, $search)
-            ->withCount('invoices')
-            ->orderBy('name')
-            ->paginate(25)
-            ->withQueryString();
+        $partyQuery = $this->query($tenantId, $tab, $search)->withCount('invoices');
+        $this->applySort($partyQuery, $request, [
+            'name'           => 'name',
+            'type'           => 'type',
+            'gstin'          => 'gstin',
+            'pan'            => 'pan',
+            'phone'          => 'phone',
+            'email'          => 'email',
+            'city'           => 'city',
+            'invoices_count' => 'invoices_count',
+        ], fn($q) => $q->orderBy('name'));
+        $parties = $partyQuery->paginate(25)->withQueryString();
 
         $balances = $this->outstandingByParty($tenantId, $parties->pluck('id')->all());
 

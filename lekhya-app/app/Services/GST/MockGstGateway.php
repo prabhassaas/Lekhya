@@ -15,19 +15,22 @@ class MockGstGateway implements GstGateway
             return ['valid' => false, 'gstin' => $gstin, 'message' => 'GSTIN format looks invalid', 'provider' => 'mock'];
         }
 
+        // Format is valid, but without a verification provider connected we must
+        // NOT fabricate a business name (previously "MOCK TRADER PRIVATE LIMITED").
+        // Return only what we can derive from the GSTIN itself and flag that the
+        // registered name is not verified, so the UI never shows or auto-fills a
+        // fake company name. Set the CASHFREE_* secrets to enable live lookup.
         return [
-            'valid'             => true,
-            'gstin'             => $gstin,
-            'legal_name'        => 'MOCK TRADER PRIVATE LIMITED',
-            'trade_name'        => 'Mock Trader',
-            'status'            => 'Active',
-            'registration_date' => '2017-07-01',
-            'constitution'      => 'Private Limited Company',
-            'taxpayer_type'     => 'Regular',
-            'address'           => '123 Commercial Street, Bengaluru, Karnataka, 560001',
-            'state_code'        => substr($gstin, 0, 2),
-            'pan'               => substr($gstin, 2, 10),
-            'provider'          => 'mock',
+            'valid'      => true,
+            'verified'   => false,
+            'gstin'      => $gstin,
+            'legal_name' => null,
+            'trade_name' => null,
+            'status'     => null,
+            'state_code' => substr($gstin, 0, 2),
+            'pan'        => substr($gstin, 2, 10),
+            'message'    => 'GSTIN format is valid. Connect a GST verification provider to fetch the registered business name.',
+            'provider'   => 'mock',
         ];
     }
 

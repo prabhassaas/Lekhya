@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
+    use \App\Http\Controllers\Concerns\SortsListings;
+
     public function index(Request $request)
     {
         $tenantId = auth()->user()->tenant_id;
@@ -23,10 +25,17 @@ class ProductController extends Controller
                       ->orWhere('hsn_sac_code', 'like', "%{$search}%")
                       ->orWhere('quality', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy('name')
-            ->paginate(25)
-            ->withQueryString();
+            });
+        $this->applySort($products, $request, [
+            'name'          => 'name',
+            'quality'       => 'quality',
+            'dimension'     => 'dimension',
+            'hsn_sac_code'  => 'hsn_sac_code',
+            'gst_rate'      => 'gst_rate',
+            'sale_price'    => 'sale_price',
+            'current_stock' => 'current_stock',
+        ], fn($q) => $q->orderBy('name'));
+        $products = $products->paginate(25)->withQueryString();
 
         $count = Product::where('tenant_id', $tenantId)->count();
 

@@ -45,14 +45,14 @@
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
-                    <th class="text-left px-5 py-2.5">Name</th>
-                    <th class="text-left px-5 py-2.5">Type</th>
-                    <th class="text-left px-5 py-2.5">GSTIN</th>
-                    <th class="text-left px-5 py-2.5">PAN</th>
-                    <th class="text-left px-5 py-2.5">Phone</th>
-                    <th class="text-left px-5 py-2.5">Email</th>
-                    <th class="text-left px-5 py-2.5">Location</th>
-                    <th class="text-right px-5 py-2.5">Bills</th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Name" column="name" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Type" column="type" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="GSTIN" column="gstin" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="PAN" column="pan" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Phone" column="phone" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Email" column="email" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Location" column="city" /></th>
+                    <th class="text-right px-5 py-2.5"><x-sort-header label="Bills" column="invoices_count" align="right" /></th>
                     <th class="text-right px-5 py-2.5">Outstanding</th>
                     <th class="px-5 py-2.5"></th>
                 </tr>

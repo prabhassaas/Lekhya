@@ -105,11 +105,17 @@ function companyForm(states, stateCode) {
       try {
         const res = await fetch('{{ route('gstin.verify') }}?gstin=' + encodeURIComponent(g));
         const d = await res.json();
-        if (d.valid) {
-          this.gstinOk = true; this.gstinMsg = '✓ ' + (d.legal_name || 'Verified');
-          if (d.legal_name && !this.$refs.name.value.trim()) this.$refs.name.value = d.legal_name;
+        if (d.valid && d.legal_name) {
+          this.gstinOk = true; this.gstinMsg = '✓ ' + d.legal_name;
+          if (!this.$refs.name.value.trim()) this.$refs.name.value = d.legal_name;
           if (d.pan) this.$refs.pan.value = d.pan;
           if (d.address && !this.$refs.address.value.trim()) this.$refs.address.value = d.address;
+          if (d.state_code) this.stateCode = String(d.state_code).padStart(2, '0');
+        } else if (d.valid) {
+          // Format valid but no verified name (offline mock). Fill what we can
+          // derive; never invent a business name.
+          this.gstinOk = true; this.gstinMsg = d.message || 'GSTIN format is valid';
+          if (d.pan) this.$refs.pan.value = d.pan;
           if (d.state_code) this.stateCode = String(d.state_code).padStart(2, '0');
         } else {
           this.gstinOk = false; this.gstinMsg = d.message || 'Invalid GSTIN — check and try again';

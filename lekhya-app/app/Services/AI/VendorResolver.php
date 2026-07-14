@@ -91,9 +91,26 @@ class VendorResolver
             return true;
         }
 
-        $name  = mb_strtolower(trim((string) ($block['name'] ?? '')));
-        $tName = mb_strtolower(trim((string) ($tenant->name ?? '')));
+        $name  = self::normalizeName($block['name'] ?? '');
+        $tName = self::normalizeName($tenant->name ?? '');
         return $name !== '' && $tName !== '' && $name === $tName;
+    }
+
+    /**
+     * Normalise a company name for self-comparison: lower-case, strip common
+     * legal suffixes and punctuation. Lets "The Yarn Story" match "THE YARN
+     * STORY PVT. LTD." on a bill when the GSTIN was misread, so we still detect
+     * our own company and keep the accounting from the user's point of view.
+     */
+    private static function normalizeName(?string $s): string
+    {
+        $s = mb_strtolower(trim((string) $s));
+        if ($s === '') {
+            return '';
+        }
+        $s = preg_replace('/\b(private limited|pvt\.? ?ltd\.?|limited|ltd\.?|llp|inc\.?|corporation|corp\.?|co\.?|company|enterprises?|traders?|and|&)\b/u', ' ', $s);
+        $s = preg_replace('/[^a-z0-9 ]+/u', ' ', (string) $s);
+        return trim((string) preg_replace('/\s+/', ' ', (string) $s));
     }
 
     private static function panOf(?string $pan, string $gstin): ?string

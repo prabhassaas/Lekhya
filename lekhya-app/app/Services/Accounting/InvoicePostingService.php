@@ -90,13 +90,27 @@ class InvoicePostingService
             }
         }
 
-        // Round off
-        if (abs($invoice->round_off) > 0.0001) {
-            $isDebit = $invoice->round_off > 0;
+        // Balance guard. Round every line to paise, then post the residual — the
+        // invoice's round-off plus any sub-paise noise from GST-inclusive
+        // back-calculation — to the round-off account so the entry reconciles
+        // EXACTLY to the invoice total. Without this, summing 4-decimal
+        // taxable/GST values leaves a fraction (e.g. debit 13500.0229 vs credit
+        // 13500.02) that trips the balanced-journal check and blocks posting.
+        foreach ($journalLines as &$__jl) {
+            $__jl['debit']  = round((float) ($__jl['debit'] ?? 0), 2);
+            $__jl['credit'] = round((float) ($__jl['credit'] ?? 0), 2);
+        }
+        unset($__jl);
+
+        $residual = round(
+            array_sum(array_column($journalLines, 'debit')) - array_sum(array_column($journalLines, 'credit')),
+            2
+        );
+        if (abs($residual) >= 0.01) {
             $journalLines[] = [
                 'account_id' => $systemAccounts['round_off'],
-                'debit'      => $isDebit ? $invoice->round_off : 0,
-                'credit'     => $isDebit ? 0 : abs($invoice->round_off),
+                'debit'      => $residual < 0 ? -$residual : 0,
+                'credit'     => $residual > 0 ? $residual : 0,
                 'narration'  => 'Round off',
             ];
         }

@@ -18,7 +18,9 @@ return [
 
         // GSTIN verification / lookup — Cashfree Verification Suite.
         // Stays on the offline mock until both Cashfree credentials are set.
-        'verify_driver' => env('GST_VERIFY_DRIVER', 'mock'), // mock | cashfree
+        // 'auto' → use Cashfree when its credentials are present, else offline mock.
+        // Set GST_VERIFY_DRIVER=mock to force the offline mock even with creds.
+        'verify_driver' => env('GST_VERIFY_DRIVER', 'auto'), // auto | mock | cashfree
         'cashfree' => [
             'env'           => env('CASHFREE_ENV', 'production'), // production | sandbox
             'client_id'     => env('CASHFREE_CLIENT_ID'),

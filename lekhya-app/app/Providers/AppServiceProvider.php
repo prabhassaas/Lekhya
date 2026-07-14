@@ -29,8 +29,12 @@ class AppServiceProvider extends ServiceProvider
                 default => new MockGstGateway(), // replace with real GSP class
             };
 
+            // Use real Cashfree GSTIN verification whenever its credentials are
+            // present — no separate flag needed — unless verification is
+            // explicitly forced to the offline mock (GST_VERIFY_DRIVER=mock).
             $cf = config('services.gst.cashfree');
-            if (config('services.gst.verify_driver') === 'cashfree' && ! empty($cf['client_id']) && ! empty($cf['client_secret'])) {
+            $hasCreds = ! empty($cf['client_id']) && ! empty($cf['client_secret']);
+            if ($hasCreds && config('services.gst.verify_driver') !== 'mock') {
                 return new CashfreeGstGateway($gsp, (string) $cf['client_id'], (string) $cf['client_secret'], (string) ($cf['env'] ?? 'production'));
             }
 

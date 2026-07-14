@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller {
+    use \App\Http\Controllers\Concerns\SortsListings;
+
     public function __construct(private InvoicePostingService $posting, private GstRateEngine $rateEngine, private JournalEngine $journalEngine) {}
 
     public function index(Request $request) {
@@ -20,11 +22,23 @@ class InvoiceController extends Controller {
         $query = Invoice::where('tenant_id', $tenantId)->with('party');
         if ($view === 'cancelled') {
             // Cancelled / reversed bills across both sales & purchase.
-            $query->where('status', 'cancelled')->latest('updated_at');
+            $query->where('status', 'cancelled');
         } else {
             // Live docs only — cancelled ones move to their own tab.
-            $query->where('type', $type)->where('status', '!=', 'cancelled')->latest('invoice_date');
+            $query->where('type', $type)->where('status', '!=', 'cancelled');
         }
+
+        // Clickable column sorting (?sort=&dir=), else natural default order.
+        $this->applySort($query, $request, [
+            'invoice_number'   => 'invoice_number',
+            'reference_number' => 'reference_number',
+            'type'             => 'type',
+            'invoice_date'     => 'invoice_date',
+            'total_amount'     => 'total_amount',
+            'balance_amount'   => 'balance_amount',
+            'status'           => 'status',
+            'party'            => fn($q, $dir) => $q->orderBy(Party::select('name')->whereColumn('parties.id', 'invoices.party_id'), $dir),
+        ], fn($q) => $view === 'cancelled' ? $q->latest('updated_at') : $q->latest('invoice_date'));
 
         $cancelledCount = Invoice::where('tenant_id', $tenantId)->where('status', 'cancelled')->count();
         $invoices = $query->paginate(20)->withQueryString();
@@ -176,6 +190,9 @@ class InvoiceController extends Controller {
 
     public function show(Invoice $invoice) {
         $this->authorize('view', $invoice);
+        // Load the posted double-entry so the show page can display the journal
+        // (voucher + DR/CR lines) alongside the invoice for clarity.
+        $invoice->load(['journal.lines' => fn($q) => $q->orderBy('line_order'), 'journal.lines.account']);
         return view('accounting.invoices.show', compact('invoice'));
     }
 

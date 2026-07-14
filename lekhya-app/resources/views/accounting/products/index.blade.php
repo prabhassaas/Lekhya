@@ -21,13 +21,13 @@
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
-                    <th class="text-left px-5 py-2.5">Product</th>
-                    <th class="text-left px-5 py-2.5">Quality</th>
-                    <th class="text-left px-5 py-2.5">Dimension</th>
-                    <th class="text-left px-5 py-2.5">HSN/SAC</th>
-                    <th class="text-right px-5 py-2.5">GST %</th>
-                    <th class="text-right px-5 py-2.5">Sale price</th>
-                    <th class="text-right px-5 py-2.5">Stock</th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Product" column="name" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Quality" column="quality" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Dimension" column="dimension" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="HSN/SAC" column="hsn_sac_code" /></th>
+                    <th class="text-right px-5 py-2.5"><x-sort-header label="GST %" column="gst_rate" align="right" /></th>
+                    <th class="text-right px-5 py-2.5"><x-sort-header label="Sale price" column="sale_price" align="right" /></th>
+                    <th class="text-right px-5 py-2.5"><x-sort-header label="Stock" column="current_stock" align="right" /></th>
                     <th class="px-5 py-2.5"></th>
                 </tr>
             </thead>

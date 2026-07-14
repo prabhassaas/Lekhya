@@ -64,6 +64,55 @@
         </div>
     </div>
 
+    @if($invoice->journal)
+    {{-- Double-entry journal posted for this bill — shown above the invoice for clarity. --}}
+    <div class="bg-white rounded-xl border border-navy-100 shadow-sm overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 bg-navy-50 border-b border-navy-100">
+            <div>
+                <p class="text-[11px] text-navy-500 uppercase tracking-wider">Journal Entry · Double-Entry</p>
+                <p class="text-sm font-semibold text-navy-800">
+                    <i class="fa fa-book mr-1"></i>{{ $invoice->journal->voucher_number }}
+                    <span class="text-gray-400 font-normal ml-1">{{ ucfirst($invoice->journal->voucher_type) }} · {{ \Illuminate\Support\Carbon::parse($invoice->journal->date)->format('d M Y') }}</span>
+                    @if($invoice->journal->is_reversed)<span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">Reversed</span>@endif
+                </p>
+            </div>
+            <a href="{{ route('accounting.journals.show', $invoice->journal) }}" class="text-xs text-navy-600 hover:underline whitespace-nowrap">Open voucher <i class="fa fa-arrow-right ml-0.5"></i></a>
+        </div>
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-2.5">Account</th>
+                    <th class="text-left px-5 py-2.5">Narration</th>
+                    <th class="text-right px-5 py-2.5">Debit</th>
+                    <th class="text-right px-5 py-2.5">Credit</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                @foreach($invoice->journal->lines as $jl)
+                <tr>
+                    <td class="px-5 py-2.5 text-gray-900 whitespace-nowrap"><span class="font-mono text-xs text-gray-400 mr-1.5">{{ $jl->account->code ?? '' }}</span>{{ $jl->account->name ?? '—' }}</td>
+                    <td class="px-5 py-2.5 text-gray-500 text-xs">{{ $jl->narration }}</td>
+                    <td class="px-5 py-2.5 text-right {{ $jl->debit > 0 ? 'text-gray-900 font-medium' : 'text-gray-300' }}">{{ $jl->debit > 0 ? '₹'.number_format($jl->debit, 2) : '—' }}</td>
+                    <td class="px-5 py-2.5 text-right {{ $jl->credit > 0 ? 'text-gray-900 font-medium' : 'text-gray-300' }}">{{ $jl->credit > 0 ? '₹'.number_format($jl->credit, 2) : '—' }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                <tr class="border-t-2 border-gray-200 bg-gray-50 font-semibold text-gray-900">
+                    <td class="px-5 py-2.5" colspan="2">Total</td>
+                    <td class="px-5 py-2.5 text-right">₹{{ number_format($invoice->journal->total_debit, 2) }}</td>
+                    <td class="px-5 py-2.5 text-right">₹{{ number_format($invoice->journal->total_credit, 2) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        </div>
+        <div class="px-5 py-2 text-[11px] text-gray-400 border-t border-gray-100 flex items-center gap-1.5">
+            <i class="fa fa-scale-balanced"></i> Debits equal credits — this is the double-entry posted to your ledger for this bill.
+        </div>
+    </div>
+    @endif
+
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 grid grid-cols-2 gap-6">
         <div>
             <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">{{ $invoice->type === 'sales' ? 'Customer' : 'Vendor' }}</p>
