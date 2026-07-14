@@ -78,10 +78,13 @@ class LekhyaAiDriver implements AiDriverInterface
                 'temperature' => 0.3,
             ]);
 
-            return $response->successful()
-                ? trim((string) $response->json('choices.0.message.content', ''))
-                : '';
-        } catch (\Throwable) {
+            if ($response->successful()) {
+                return trim((string) $response->json('choices.0.message.content', ''));
+            }
+            Log::warning('AI chat failed', ['model' => $this->textModel, 'status' => $response->status(), 'body' => substr($response->body(), 0, 300)]);
+            return '';
+        } catch (\Throwable $e) {
+            Log::error('AI chat error', ['error' => $e->getMessage()]);
             return '';
         }
     }

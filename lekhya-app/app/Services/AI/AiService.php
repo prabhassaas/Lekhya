@@ -227,15 +227,24 @@ class AiService
             . "For data questions, tell them exactly where in the app to look. Keep to accounting, GST and Lekhya topics; if asked something unrelated, gently steer back. "
             . "Use simple, friendly language. Never mention the underlying technology, AI provider, model names or internal implementation details.";
 
-        if (method_exists($this->driver, 'chat') && $this->driver->isAvailable()) {
+        if (method_exists($this->driver, 'chat')) {
+            if (! $this->driver->isAvailable()) {
+                // No central AI key reached the app (same key that powers scanning).
+                return [
+                    'answer' => "The AI assistant isn't switched on for your workspace yet — the same setup that powers invoice scanning. If scanning works for you, please refresh; otherwise contact support to enable it.",
+                    'ai'     => false,
+                ];
+            }
             $answer = $this->driver->chat($system, $message);
             if (trim($answer) !== '') {
                 return ['answer' => $answer, 'ai' => true];
             }
+            // Key present but the call didn't come back — transient.
+            return ['answer' => "I couldn't reach the AI just now. Please try again in a moment.", 'ai' => false];
         }
 
         return [
-            'answer' => "I'm your Lekhya assistant for the “{$module}” area. Ask me how to do something here — for example how to record a bill, run a report, or file a return — and I'll point you to the right place. (Live AI is unavailable right now; please check your connection or credits.)",
+            'answer' => "I'm your Lekhya assistant for the “{$module}” area. Ask me how to do something here and I'll point you to the right place.",
             'ai'     => false,
         ];
     }

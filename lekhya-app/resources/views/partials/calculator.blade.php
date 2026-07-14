@@ -4,7 +4,7 @@
     {{-- Floating toggle button --}}
     <button type="button" x-show="!open" @click="toggle()"
             title="Calculator (Alt+C)"
-            style="position:fixed;right:20px;bottom:20px;z-index:9000;width:52px;height:52px"
+            style="position:fixed;right:20px;bottom:84px;z-index:9000;width:52px;height:52px"
             class="rounded-full bg-navy-600 hover:bg-navy-700 text-white shadow-lg flex items-center justify-center transition hover:scale-105">
         <i class="fa fa-calculator text-lg"></i>
     </button>

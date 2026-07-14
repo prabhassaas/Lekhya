@@ -23,16 +23,16 @@
 @endphp
 
 <div x-data="lekhyaAssistant(@js($__mod), @js($__scope), @js($__first))" x-cloak>
-    {{-- Floating toggle (bottom-left, clear of the calculator) --}}
+    {{-- Floating toggle (bottom-right, directly below the calculator) --}}
     <button type="button" x-show="!open" @click="toggle()" title="Ask Lekhya AI"
-            style="position:fixed;left:20px;bottom:20px;z-index:9000;height:52px"
+            style="position:fixed;right:20px;bottom:20px;z-index:9000;height:52px"
             class="rounded-full bg-navy-600 hover:bg-navy-700 text-white shadow-lg flex items-center gap-2 pl-4 pr-5 transition hover:scale-105">
         <i class="fa fa-wand-magic-sparkles"></i><span class="text-sm font-medium hidden sm:inline">Ask AI</span>
     </button>
 
     {{-- Panel --}}
     <div x-show="open" x-transition
-         style="position:fixed;left:16px;bottom:16px;z-index:9001;width:clamp(260px,92vw,340px);max-height:76vh"
+         style="position:fixed;right:16px;bottom:16px;z-index:9001;width:clamp(260px,92vw,340px);max-height:76vh"
          class="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
 
         {{-- Header --}}
