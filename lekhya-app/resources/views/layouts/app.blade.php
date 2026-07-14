@@ -501,6 +501,7 @@ document.addEventListener('alpine:init', function () {
 </script>
 
 @include('partials.calculator')
+@include('partials.assistant')
 
 @stack('scripts')
 </body>

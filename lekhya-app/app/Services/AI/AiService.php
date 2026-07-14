@@ -4,7 +4,7 @@ namespace App\Services\AI;
 use App\Models\AiSetting;
 use App\Services\AI\Contracts\AiDriverInterface;
 use App\Services\AI\Drivers\AnthropicDriver;
-use App\Services\AI\Drivers\GroqDriver;
+use App\Services\AI\Drivers\LekhyaAiDriver;
 use App\Services\AI\Drivers\MockDriver;
 use App\Services\AI\Drivers\OllamaDriver;
 use Illuminate\Http\UploadedFile;
@@ -42,8 +42,8 @@ class AiService
         // 2. Central Prabhas SaaS key (env/secret) — auto-enabled for any
         //    tenant on an active subscription or trial. No per-user keys.
         if ($this->aiEntitled()) {
-            $configured = config('services.ai.driver', 'groq');
-            foreach ([$configured, 'groq', 'anthropic', 'ollama'] as $provider) {
+            $configured = config('services.ai.driver', 'lekhya');
+            foreach ([$configured, 'lekhya', 'anthropic', 'ollama'] as $provider) {
                 $d = $this->build($provider);
                 if ($d && $d->isAvailable()) {
                     return $d;
@@ -67,11 +67,11 @@ class AiService
     private function build(string $provider, array $config = []): ?AiDriverInterface
     {
         return match ($provider) {
-            'groq'      => new GroqDriver($config),
-            'anthropic' => new AnthropicDriver(),
-            'mock'      => new MockDriver(),
-            'ollama'    => new OllamaDriver(),
-            default     => null,
+            'lekhya', 'groq' => new LekhyaAiDriver($config), // 'groq' = legacy stored value
+            'anthropic'      => new AnthropicDriver(),
+            'mock'           => new MockDriver(),
+            'ollama'         => new OllamaDriver(),
+            default          => null,
         };
     }
 
@@ -84,7 +84,7 @@ class AiService
     public function getDriverName(): string
     {
         return match (true) {
-            $this->driver instanceof GroqDriver      => 'groq',
+            $this->driver instanceof LekhyaAiDriver  => 'lekhya',
             $this->driver instanceof OllamaDriver    => 'ollama',
             $this->driver instanceof AnthropicDriver => 'anthropic',
             default                                  => 'mock',
@@ -211,6 +211,35 @@ class AiService
      * Parse a natural language accounting query into a structured intent.
      * Then execute the safe pre-defined query for that intent.
      */
+    /**
+     * Module-scoped in-app assistant. Answers concisely about the module the
+     * user is in. Returns ['answer' => string, 'ai' => bool] — ai=false when the
+     * offline fallback was used (so the caller can skip metering a credit).
+     */
+    public function ask(string $message, array $ctx = []): array
+    {
+        $module = $ctx['module'] ?? 'the app';
+        $scope  = $ctx['scope'] ?? '';
+
+        $system = "You are Lekhya's in-app assistant. Lekhya is an AI-powered, GST-compliant accounting ERP for Indian businesses. "
+            . "The user is currently in the \"{$module}\" module. {$scope} "
+            . "Answer concisely in 2–4 sentences, specifically about \"{$module}\" and how to do things inside Lekhya. "
+            . "For data questions, tell them exactly where in the app to look. Keep to accounting, GST and Lekhya topics; if asked something unrelated, gently steer back. "
+            . "Use simple, friendly language. Never mention the underlying technology, AI provider, model names or internal implementation details.";
+
+        if (method_exists($this->driver, 'chat') && $this->driver->isAvailable()) {
+            $answer = $this->driver->chat($system, $message);
+            if (trim($answer) !== '') {
+                return ['answer' => $answer, 'ai' => true];
+            }
+        }
+
+        return [
+            'answer' => "I'm your Lekhya assistant for the “{$module}” area. Ask me how to do something here — for example how to record a bill, run a report, or file a return — and I'll point you to the right place. (Live AI is unavailable right now; please check your connection or credits.)",
+            'ai'     => false,
+        ];
+    }
+
     public function runNlQuery(string $query, int $tenantId): array
     {
         $intent = $this->driver->parseNlQueryIntent($query);

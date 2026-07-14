@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class AiSettingsController extends Controller
 {
     private const PROVIDERS = [
-        'groq'      => 'Groq (fast, recommended)',
+        'lekhya'    => 'Lekhya AI (fast, recommended)',
         'anthropic' => 'Anthropic Claude',
         'ollama'    => 'Ollama (self-hosted)',
         'mock'      => 'Mock (offline demo)',
@@ -23,8 +23,8 @@ class AiSettingsController extends Controller
             'setting'   => $setting,
             'providers' => self::PROVIDERS,
             'defaults'  => [
-                'text'   => config('services.ai.groq_text_model'),
-                'vision' => config('services.ai.groq_vision_model'),
+                'text'   => config('services.ai.text_model'),
+                'vision' => config('services.ai.vision_model'),
             ],
         ]);
     }

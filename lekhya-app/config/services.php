@@ -41,17 +41,18 @@ return [
 
     // AI / LLM
     'ai' => [
-        'driver'      => env('AI_DRIVER', 'ollama'),  // ollama | anthropic | groq | openai
+        'driver'      => env('AI_DRIVER', 'lekhya'),
         'endpoint'    => env('AI_ENDPOINT', 'http://localhost:11434/api/generate'),
         'model'       => env('AI_MODEL', 'llama3.2'),
-        'max_tokens'  => env('AI_MAX_TOKENS', 2048),
+        'max_tokens'  => env('AI_MAX_TOKENS', 4096),
         'temperature' => env('AI_TEMPERATURE', 0.1),
         'use_vision'  => env('AI_USE_VISION', false),
         'anthropic_key' => env('ANTHROPIC_API_KEY'),
-        'groq_key'      => env('GROQ_API_KEY'),
+        // Primary engine key (env var kept for secret compatibility).
+        'primary_key'   => env('AI_PRIMARY_KEY', env('GROQ_API_KEY')),
         // Per-tenant keys stored in ai_settings override these env defaults.
-        'groq_text_model'   => env('GROQ_TEXT_MODEL', 'llama-3.3-70b-versatile'),
-        'groq_vision_model' => env('GROQ_VISION_MODEL', 'meta-llama/llama-4-scout-17b-16e-instruct'),
+        'text_model'   => env('AI_TEXT_MODEL', env('GROQ_TEXT_MODEL', 'llama-3.3-70b-versatile')),
+        'vision_model' => env('AI_VISION_MODEL', env('GROQ_VISION_MODEL', 'meta-llama/llama-4-scout-17b-16e-instruct')),
     ],
 
     // Razorpay

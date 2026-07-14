@@ -101,6 +101,32 @@ class AiAssistantController extends Controller
         return redirect()->route('ai.index')->with('success', "Invoice read from \"{$file->getClientOriginalName()}\". Review and approve the suggestion below.");
     }
 
+    /** Module-scoped in-app assistant (the floating prompt box). Meters a credit per live answer. */
+    public function ask(Request $request)
+    {
+        $data = $request->validate([
+            'message' => 'required|string|max:1000',
+            'module'  => 'nullable|string|max:60',
+            'scope'   => 'nullable|string|max:400',
+        ]);
+        $tenant = auth()->user()->tenant;
+        if ($this->creditsExhausted()) {
+            return response()->json(['error' => "You've used all your AI credits this month. Top up or upgrade to keep asking."], 429);
+        }
+
+        $result = $this->ai->ask($data['message'], ['module' => $data['module'] ?? 'the app', 'scope' => $data['scope'] ?? '']);
+
+        if (! empty($result['ai'])) {
+            $this->meter($tenant->id, 'assistant');
+        }
+
+        return response()->json([
+            'answer'    => $result['answer'],
+            'remaining' => $tenant?->aiCreditsRemaining(),
+            'unlimited' => (bool) $tenant?->aiCreditsUnlimited(),
+        ]);
+    }
+
     public function naturalLanguageQuery(Request $request)
     {
         $request->validate(['query' => 'required|string|max:500']);
@@ -475,7 +501,7 @@ class AiAssistantController extends Controller
                 => "Couldn't read this file clearly. Upload a sharper photo or the original PDF and try again.",
             str_contains($e, 'could not extract text')
                 => "This file had no readable text. Use a clear PDF or a well-lit, straight photo of the invoice.",
-            str_contains($e, 'groq') || str_contains($e, 'api error') || str_contains($e, 'unavailable')
+            str_contains($e, 'engine error') || str_contains($e, 'api error') || str_contains($e, 'unavailable')
                 => "The AI reader had trouble with this bill. Please try again in a moment.",
             default => $error,
         };

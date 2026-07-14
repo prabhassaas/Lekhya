@@ -157,6 +157,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::prefix('ai')->name('ai.')->group(function () {
         Route::get('/', [AiAssistantController::class, 'index'])->name('index');
         Route::get('credits', [AiAssistantController::class, 'credits'])->name('credits');
+        Route::post('ask', [AiAssistantController::class, 'ask'])->middleware('throttle:30,1')->name('ask');
         Route::post('extract', [AiAssistantController::class, 'extractInvoice'])->name('extract');
         Route::post('query', [AiAssistantController::class, 'naturalLanguageQuery'])->name('query');
         Route::post('suggest-account', [AiAssistantController::class, 'suggestAccount'])->name('suggest-account');
@@ -205,7 +206,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('billing', [TenantController::class, 'billing'])->name('billing');
         Route::post('billing/test-invoice', [TenantController::class, 'testInvoice'])->name('billing.test');
 
-        // AI / OCR configuration (per-tenant Groq key, encrypted)
+        // AI / OCR configuration (per-tenant API key, encrypted)
         Route::get('ai', [AiSettingsController::class, 'edit'])->name('ai');
         Route::put('ai', [AiSettingsController::class, 'update'])->name('ai.update');
         Route::post('ai/test', [AiSettingsController::class, 'test'])->name('ai.test');

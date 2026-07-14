@@ -83,7 +83,7 @@
                 <tr class="hover:bg-gray-50">
                     <td class="px-5 py-3 text-gray-500">{{ $row->created_at->format('d M Y, H:i') }}</td>
                     <td class="px-5 py-3 text-gray-800">{{ $labels[$row->type] ?? ucwords(str_replace('_', ' ', $row->type)) }}</td>
-                    <td class="px-5 py-3 text-gray-400 text-xs">{{ $row->driver ?? '—' }}</td>
+                    <td class="px-5 py-3 text-gray-400 text-xs">{{ in_array($row->driver, ['lekhya','groq','anthropic',null], true) ? 'Lekhya AI' : ucfirst($row->driver) }}</td>
                     <td class="px-5 py-3 text-right font-medium text-gray-700">1</td>
                 </tr>
                 @empty

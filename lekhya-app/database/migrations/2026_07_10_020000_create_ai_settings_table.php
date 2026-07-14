@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('ai_settings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->unique()->constrained()->cascadeOnDelete();
-            $table->string('provider')->default('groq'); // groq | anthropic | ollama | mock
+            $table->string('provider')->default('lekhya'); // lekhya | anthropic | ollama | mock
             $table->text('api_key')->nullable();          // encrypted at the model layer
             $table->string('text_model')->nullable();     // e.g. llama-3.3-70b-versatile
             $table->string('vision_model')->nullable();   // e.g. meta-llama/llama-4-scout-17b-16e-instruct

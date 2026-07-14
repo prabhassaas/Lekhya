@@ -132,13 +132,13 @@ jobs:
             set_env_force MAIL_FROM_NAME '"Prabhas SaaS"'
             [ -n "$MAIL_PASSWORD" ] && set_env_force MAIL_PASSWORD "\"$MAIL_PASSWORD\""
 
-            # ── AI: central Prabhas SaaS Groq key ─────────────────────────
+            # ── AI: central Lekhya AI key ─────────────────────────────────
             # One shared key powers AI (invoice OCR, suggestions) for every
-            # tenant on an active subscription/trial. From the GROQ_API_KEY
-            # GitHub secret; AI stays on the offline mock until it's set.
-            set_env_force AI_DRIVER "groq"
+            # tenant on an active subscription/trial. Read from a GitHub secret;
+            # AI stays on the offline mock until it's set.
+            set_env_force AI_DRIVER "lekhya"
             [ -n "$GROQ_API_KEY" ] && set_env_force GROQ_API_KEY "$GROQ_API_KEY"
-            # Optional overrides — let us point at current/stronger Groq models
+            # Optional model overrides — point at current/stronger models
             # without a code change (extraction accuracy, or model deprecation).
             [ -n "$GROQ_VISION_MODEL" ] && set_env_force GROQ_VISION_MODEL "$GROQ_VISION_MODEL"
             [ -n "$GROQ_TEXT_MODEL" ] && set_env_force GROQ_TEXT_MODEL "$GROQ_TEXT_MODEL"

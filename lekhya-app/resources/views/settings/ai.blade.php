@@ -17,7 +17,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Provider</label>
             <select name="provider" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 @foreach($providers as $key => $label)
-                <option value="{{ $key }}" @selected(old('provider', $setting->provider ?? 'groq') === $key)>{{ $label }}</option>
+                <option value="{{ $key }}" @selected(old('provider', $setting->provider ?? 'lekhya') === $key)>{{ $label }}</option>
                 @endforeach
             </select>
         </div>
@@ -31,9 +31,9 @@
             </div>
             @endif
             <input type="password" name="api_key" autocomplete="off"
-                   placeholder="{{ $setting->exists && $setting->hasKey() ? 'Enter a new key to replace…' : 'gsk_… (paste your Groq API key)' }}"
+                   placeholder="{{ $setting->exists && $setting->hasKey() ? 'Enter a new key to replace…' : 'Paste your AI engine API key' }}"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono">
-            <p class="text-xs text-gray-400 mt-1">Get a free key at console.groq.com → API Keys.</p>
+            <p class="text-xs text-gray-400 mt-1">Optional — Lekhya AI is already enabled on your plan. Add your own key only if you want to use it instead.</p>
         </div>
 
         <div class="grid sm:grid-cols-2 gap-4">

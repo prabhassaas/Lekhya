@@ -6,11 +6,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Groq — OpenAI-compatible, very fast, cheap. Handles both text (chat/intent)
+ * Primary Lekhya AI engine — OpenAI-compatible, fast. Handles text (chat/intent)
  * and vision (invoice OCR) through one API. The key + models are injected
  * per-tenant from ai_settings; falls back to env config for CLI/queue use.
  */
-class GroqDriver implements AiDriverInterface
+class LekhyaAiDriver implements AiDriverInterface
 {
     private const ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -23,11 +23,11 @@ class GroqDriver implements AiDriverInterface
     {
         // Use ?? on every key — this ctor is also called with an empty config
         // in the env-fallback path, so the keys may be absent (not just null).
-        $this->apiKey      = ($config['api_key']      ?? null) ?: (string) config('services.ai.groq_key', '');
-        $this->textModel   = ($config['text_model']   ?? null) ?: config('services.ai.groq_text_model', 'llama-3.3-70b-versatile');
-        $this->visionModel = ($config['vision_model'] ?? null) ?: config('services.ai.groq_vision_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
+        $this->apiKey      = ($config['api_key']      ?? null) ?: (string) config('services.ai.primary_key', '');
+        $this->textModel   = ($config['text_model']   ?? null) ?: config('services.ai.text_model', 'llama-3.3-70b-versatile');
+        $this->visionModel = ($config['vision_model'] ?? null) ?: config('services.ai.vision_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
         // Big enough that a full invoice's JSON (lines + field_confidence) isn't
-        // truncated — a cut-off body triggers Groq's "failed to generate JSON" 400.
+        // truncated — a cut-off body triggers the engine's "failed to generate JSON" 400.
         $this->maxTokens   = (int) config('services.ai.max_tokens', 4096);
     }
 
@@ -64,12 +64,34 @@ class GroqDriver implements AiDriverInterface
         return ! empty($this->apiKey);
     }
 
+    /** Plain conversational completion (no JSON mode) — powers the in-app assistant. */
+    public function chat(string $system, string $user): string
+    {
+        try {
+            $response = Http::timeout(45)->withToken($this->apiKey)->acceptJson()->post(self::ENDPOINT, [
+                'model'       => $this->textModel,
+                'messages'    => [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => $user],
+                ],
+                'max_tokens'  => 600,
+                'temperature' => 0.3,
+            ]);
+
+            return $response->successful()
+                ? trim((string) $response->json('choices.0.message.content', ''))
+                : '';
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
     private function call(array $content, bool $vision = false): array
     {
-        // For vision, try each candidate model in turn — Groq deprecates vision
+        // For vision, try each candidate model in turn — the provider deprecates vision
         // models often, so if one is decommissioned we fall through to the next.
         $models = $vision ? $this->visionModelChain() : [$this->textModel];
-        $last   = ['error' => 'Groq API error'];
+        $last   = ['error' => 'AI engine error'];
 
         foreach ($models as $model) {
             $res = $this->callModel($content, $model, $vision);
@@ -111,7 +133,7 @@ class GroqDriver implements AiDriverInterface
 
             $json = $response->json();
 
-            // Groq's JSON mode is strict: it 400s with json_validate_failed and
+            // The engine's JSON mode is strict: it 400s with json_validate_failed and
             // tucks the model's actual output into error.failed_generation, which
             // is usually valid JSON. Salvage that before giving up.
             $failed = data_get($json, 'error.failed_generation');
@@ -129,13 +151,13 @@ class GroqDriver implements AiDriverInterface
             }
 
             $detail = $this->errorDetail($json);
-            Log::warning('Groq request failed', ['model' => $model, 'status' => $response->status(), 'body' => $response->body()]);
+            Log::warning('AI request failed', ['model' => $model, 'status' => $response->status(), 'body' => $response->body()]);
             return [
-                'error'             => 'Groq API error ' . $response->status() . ($detail ? ': ' . $detail : ''),
+                'error'             => 'AI engine error ' . $response->status() . ($detail ? ': ' . $detail : ''),
                 '_retry_next_model' => $vision && $this->isModelUnavailable($response->status(), $detail),
             ];
         } catch (\Throwable $e) {
-            Log::error('Groq driver error', ['error' => $e->getMessage()]);
+            Log::error('AI driver error', ['error' => $e->getMessage()]);
             return ['error' => $e->getMessage()];
         }
     }

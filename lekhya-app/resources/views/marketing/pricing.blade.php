@@ -681,6 +681,37 @@
 </section>
 
 {{-- ═══════════════════════════════════════════════════════════
+     SECTION 4b — AI credits & top-ups
+═══════════════════════════════════════════════════════════ --}}
+<section class="py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-8">
+            <span class="text-xs font-bold text-amber-600 uppercase tracking-widest"><i class="fa fa-bolt mr-1"></i>AI credits</span>
+            <h2 class="text-3xl font-bold text-navy-600 mt-1">Powered by Lekhya AI</h2>
+            <p class="text-gray-500 mt-2">Every plan includes a monthly pool of AI credits. Need more? Top up any time.</p>
+        </div>
+        <div class="grid sm:grid-cols-3 gap-5">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center">
+                <p class="text-xs text-gray-500 uppercase tracking-wider">1 credit</p>
+                <p class="text-2xl font-extrabold text-navy-600 mt-1">1 AI action</p>
+                <p class="text-sm text-gray-500 mt-2">An invoice scan, an AI question, or one auto-coding — each uses a single credit.</p>
+            </div>
+            <div class="bg-navy-600 rounded-2xl shadow-sm p-6 text-center text-white ring-2 ring-amber-400">
+                <p class="text-xs text-navy-200 uppercase tracking-wider">Top-up pack</p>
+                <p class="text-3xl font-extrabold mt-1">₹99<span class="text-base font-medium text-navy-200"> / 100</span></p>
+                <p class="text-sm text-navy-100 mt-2">Extra AI credits at just <strong>₹0.99 each</strong> — added instantly, never expire.</p>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center">
+                <p class="text-xs text-gray-500 uppercase tracking-wider">Included monthly</p>
+                <p class="text-2xl font-extrabold text-navy-600 mt-1">150–3,000</p>
+                <p class="text-sm text-gray-500 mt-2">Free credits every month, scaling by plan — resets on the 1st. No card needed to start.</p>
+            </div>
+        </div>
+        <p class="text-center text-xs text-gray-400 mt-5">Credits cover all AI features — invoice OCR, auto-classification, AI Q&amp;A and account coding — on Lekhya's managed AI. No separate AI subscription or API key required.</p>
+    </div>
+</section>
+
+{{-- ═══════════════════════════════════════════════════════════
      SECTION 5 — FAQ  (Alpine.js accordion)
 ═══════════════════════════════════════════════════════════ --}}
 <section class="py-16">

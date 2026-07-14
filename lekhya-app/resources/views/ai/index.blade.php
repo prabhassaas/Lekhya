@@ -376,7 +376,7 @@
           </div>
 
           <div class="px-5 py-3 bg-gray-50 flex items-center justify-between">
-            <span class="text-xs text-gray-400">Model: {{ $s->model_used ?? 'unknown' }} · Driver: {{ $s->model_metadata['driver'] ?? 'unknown' }}</span>
+            <span class="text-xs text-gray-400">Engine: Lekhya AI</span>
             <div class="flex space-x-2">
               <form action="{{ route('ai.reject', $s) }}" method="POST">
                 @csrf
