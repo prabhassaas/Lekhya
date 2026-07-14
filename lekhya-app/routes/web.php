@@ -158,6 +158,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('/', [AiAssistantController::class, 'index'])->name('index');
         Route::get('credits', [AiAssistantController::class, 'credits'])->name('credits');
         Route::post('ask', [AiAssistantController::class, 'ask'])->middleware('throttle:30,1')->name('ask');
+        Route::get('history', [AiAssistantController::class, 'history'])->name('history');
+        Route::delete('history', [AiAssistantController::class, 'clearHistory'])->name('history.clear');
+        Route::post('scan', [AiAssistantController::class, 'scanChat'])->middleware('throttle:20,1')->name('scan');
         Route::post('extract', [AiAssistantController::class, 'extractInvoice'])->name('extract');
         Route::post('query', [AiAssistantController::class, 'naturalLanguageQuery'])->name('query');
         Route::post('suggest-account', [AiAssistantController::class, 'suggestAccount'])->name('suggest-account');

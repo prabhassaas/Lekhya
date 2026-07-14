@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\AI;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiChatMessage;
 use App\Models\AiSuggestion;
 use App\Models\AiUsage;
 use App\Models\Party;
@@ -116,6 +117,10 @@ class AiAssistantController extends Controller
 
         $result = $this->ai->ask($data['message'], ['module' => $data['module'] ?? 'the app', 'scope' => $data['scope'] ?? '']);
 
+        // Persist the turn so the user's chat history survives a page reload.
+        $this->saveChat('user', $data['message'], $data['module'] ?? null);
+        $this->saveChat('ai', $result['answer'], $data['module'] ?? null);
+
         if (! empty($result['ai'])) {
             $this->meter($tenant->id, 'assistant');
         }
@@ -124,6 +129,114 @@ class AiAssistantController extends Controller
             'answer'    => $result['answer'],
             'remaining' => $tenant?->aiCreditsRemaining(),
             'unlimited' => (bool) $tenant?->aiCreditsUnlimited(),
+        ]);
+    }
+
+    /** GET: the signed-in user's saved chat transcript (oldest first). */
+    public function history()
+    {
+        $u = auth()->user();
+        return response()->json(['messages' => AiChatMessage::recentFor($u->tenant_id, $u->id)]);
+    }
+
+    /** DELETE: clear the user's own chat transcript. */
+    public function clearHistory()
+    {
+        $u = auth()->user();
+        AiChatMessage::where('tenant_id', $u->tenant_id)->where('user_id', $u->id)->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Attach an invoice inside the chat: scan it with the SAME extraction
+     * pipeline as the Scan button, stage a pending suggestion, and hand back a
+     * plain-language summary plus a link to review & post. No ledger write here.
+     */
+    public function scanChat(Request $request)
+    {
+        $request->validate([
+            'file'   => 'required|file|mimes:pdf,png,jpg,jpeg|max:10240',
+            'module' => 'nullable|string|max:60',
+        ]);
+        $tenant = auth()->user()->tenant;
+        if ($this->creditsExhausted()) {
+            return response()->json(['error' => "You've used all your AI credits this month. Top up or upgrade to keep scanning."], 429);
+        }
+
+        $file = $request->file('file');
+        $this->saveChat('user', '📎 ' . $file->getClientOriginalName(), $request->input('module'));
+
+        $result = $this->ai->extractFromFile($file);
+        if (isset($result['error'])) {
+            $msg = $this->friendlyExtractError((string) $result['error']);
+            $this->saveChat('ai', $msg, $request->input('module'));
+            return response()->json(['ok' => false, 'answer' => $msg], 422);
+        }
+
+        $tenantId = $tenant->id;
+        $path     = $file->store("ai-uploads/{$tenantId}");
+        $result   = $this->normalizeVendor($result, $tenant);
+
+        $suggestion = AiSuggestion::create([
+            'tenant_id'      => $tenantId,
+            'type'           => 'extraction',
+            'input_context'  => ['file_path' => $path, 'filename' => $file->getClientOriginalName()],
+            'suggestion'     => $result,
+            'status'         => 'pending',
+            'model_used'     => config('services.ai.model'),
+            'model_metadata' => ['driver' => $this->ai->getDriverName(), 'is_mock' => $result['_mock'] ?? false, 'source' => 'chat'],
+        ]);
+
+        $this->meter($tenantId, 'extraction');
+
+        $answer = $this->scanSummary($result);
+        $this->saveChat('ai', $answer, $request->input('module'), 'scan', $suggestion->id);
+
+        return response()->json([
+            'ok'         => true,
+            'answer'     => $answer,
+            'review_url' => route('ai.index'),
+            'cta'        => 'Review & post →',
+            'remaining'  => $tenant?->aiCreditsRemaining(),
+            'unlimited'  => (bool) $tenant?->aiCreditsUnlimited(),
+        ]);
+    }
+
+    /** One-line, human summary of a freshly scanned bill for the chat bubble. */
+    private function scanSummary(array $ex): string
+    {
+        $name = trim((string) ($ex['party_name'] ?? '')) ?: 'the supplier';
+        $num  = trim((string) ($ex['invoice_number'] ?? ''));
+        $date = trim((string) ($ex['invoice_date'] ?? ''));
+        $total = (float) ($ex['total_amount'] ?? 0);
+        $gst   = (float) ($ex['cgst_amount'] ?? 0) + (float) ($ex['sgst_amount'] ?? 0) + (float) ($ex['igst_amount'] ?? 0);
+        $lines = is_array($ex['lines'] ?? null) ? count($ex['lines']) : 0;
+
+        $s = "I read this bill from “{$name}”";
+        if ($num !== '')  { $s .= " (No. {$num}" . ($date !== '' ? ", {$date}" : '') . ')'; }
+        $s .= ".\n";
+        $s .= 'Total ₹' . number_format($total, 2);
+        if ($gst > 0)   { $s .= ' incl. GST ₹' . number_format($gst, 2); }
+        if ($lines > 0) { $s .= ' · ' . $lines . ' line item' . ($lines === 1 ? '' : 's'); }
+        $s .= ".\nI've prepared it for you — review the details and post it when they look right.";
+        return $s;
+    }
+
+    /** Save one assistant-chat turn for the signed-in user. */
+    private function saveChat(string $role, string $body, ?string $module = null, string $kind = 'chat', ?int $suggestionId = null): void
+    {
+        $body = trim($body);
+        if ($body === '') {
+            return;
+        }
+        AiChatMessage::create([
+            'tenant_id'     => auth()->user()->tenant_id,
+            'user_id'       => auth()->id(),
+            'role'          => $role === 'user' ? 'user' : 'ai',
+            'body'          => mb_substr($body, 0, 4000),
+            'module'        => $module ? mb_substr($module, 0, 60) : null,
+            'kind'          => $kind,
+            'suggestion_id' => $suggestionId,
         ]);
     }
 

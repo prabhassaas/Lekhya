@@ -41,15 +41,19 @@
                 <p class="text-sm font-semibold leading-tight flex items-center gap-2"><i class="fa fa-wand-magic-sparkles text-xs opacity-80"></i>Lekhya AI</p>
                 <p class="text-[11px] text-navy-200 truncate">Helping with <span x-text="module"></span></p>
             </div>
-            <button type="button" @click="open=false" class="w-6 h-6 rounded hover:bg-white/20 flex items-center justify-center"><i class="fa fa-xmark text-sm"></i></button>
+            <div class="flex items-center gap-1">
+                <button type="button" x-show="messages.length > 0" @click="clearHistory()" title="Clear chat history"
+                        class="w-6 h-6 rounded hover:bg-white/20 flex items-center justify-center"><i class="fa fa-trash-can text-xs"></i></button>
+                <button type="button" @click="open=false" class="w-6 h-6 rounded hover:bg-white/20 flex items-center justify-center"><i class="fa fa-xmark text-sm"></i></button>
+            </div>
         </div>
 
         {{-- Thread --}}
         <div x-ref="thread" class="flex-1 overflow-y-auto p-3 space-y-2.5 bg-gray-50 text-sm">
-            <template x-if="messages.length === 0">
+            <template x-if="messages.length === 0 && !busy && !scanning">
                 <div>
                     <p class="text-gray-700">Hi <span class="font-semibold" x-text="firstName"></span> 👋</p>
-                    <p class="text-gray-500 mt-1">I can help you with <span class="font-medium text-gray-700" x-text="module"></span>. Ask me anything about this screen.</p>
+                    <p class="text-gray-500 mt-1">I can help you with <span class="font-medium text-gray-700" x-text="module"></span>. Ask me anything — or <button type="button" @click="$refs.file.click()" class="text-navy-600 font-medium hover:underline">attach an invoice</button> and I'll scan it for you.</p>
                     <div class="mt-3 space-y-1.5">
                         <template x-for="(s, i) in suggestions()" :key="i">
                             <button type="button" @click="send(s)" class="block w-full text-left text-xs px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 hover:border-navy-300 hover:bg-navy-50">
@@ -63,20 +67,36 @@
                 <div :class="m.role === 'user' ? 'text-right' : 'text-left'">
                     <span :class="m.role === 'user' ? 'bg-navy-600 text-white' : 'bg-white border border-gray-200 text-gray-800'"
                           class="inline-block px-3 py-2 rounded-2xl max-w-[85%] text-left whitespace-pre-wrap" x-text="m.text"></span>
+                    <template x-if="m.href">
+                        <div class="mt-1">
+                            <a :href="m.href" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-navy-600 text-white hover:bg-navy-700">
+                                <i class="fa fa-file-invoice text-[11px]"></i><span x-text="m.cta || 'Review & post →'"></span>
+                            </a>
+                        </div>
+                    </template>
                 </div>
             </template>
-            <div x-show="busy" class="text-left"><span class="inline-block px-3 py-2 rounded-2xl bg-white border border-gray-200 text-gray-400"><i class="fa fa-circle-notch fa-spin"></i></span></div>
+            <div x-show="busy || scanning" class="text-left">
+                <span class="inline-block px-3 py-2 rounded-2xl bg-white border border-gray-200 text-gray-400">
+                    <i class="fa fa-circle-notch fa-spin"></i><span x-show="scanning" class="ml-1.5 text-xs">Scanning your invoice…</span>
+                </span>
+            </div>
         </div>
 
         {{-- Input --}}
         <div class="p-2.5 border-t border-gray-100 bg-white">
             <form @submit.prevent="send()" class="flex items-center gap-2">
-                <input type="text" x-model="input" :disabled="busy" placeholder="Ask about this screen…"
-                       class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-navy-400 focus:ring-1 focus:ring-navy-200 outline-none">
-                <button type="submit" :disabled="busy || !input.trim()" class="w-9 h-9 rounded-lg bg-navy-600 hover:bg-navy-700 disabled:opacity-40 text-white flex items-center justify-center"><i class="fa fa-paper-plane text-xs"></i></button>
+                <input type="file" x-ref="file" class="hidden" accept="image/*,application/pdf,.pdf,.png,.jpg,.jpeg" @change="onFile($event)">
+                <button type="button" @click="$refs.file.click()" :disabled="busy || scanning" title="Attach an invoice to scan"
+                        class="w-9 h-9 rounded-lg border border-gray-300 text-gray-500 hover:text-navy-600 hover:border-navy-300 disabled:opacity-40 flex items-center justify-center shrink-0">
+                    <i class="fa fa-paperclip text-xs"></i>
+                </button>
+                <input type="text" x-model="input" :disabled="busy || scanning" placeholder="Ask, or attach a bill…"
+                       class="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-navy-400 focus:ring-1 focus:ring-navy-200 outline-none">
+                <button type="submit" :disabled="busy || scanning || !input.trim()" class="w-9 h-9 rounded-lg bg-navy-600 hover:bg-navy-700 disabled:opacity-40 text-white flex items-center justify-center shrink-0"><i class="fa fa-paper-plane text-xs"></i></button>
             </form>
             <p class="text-[10px] text-gray-400 mt-1.5 flex items-center justify-between">
-                <span>Each answer uses 1 AI credit.</span>
+                <span>Each answer or scan uses 1 AI credit.</span>
                 <a href="{{ route('ai.credits') }}" class="text-navy-500 hover:underline" x-show="remaining !== null">
                     <span x-show="!unlimited"><span x-text="remaining"></span> left</span>
                     <span x-show="unlimited">Unlimited</span>
@@ -90,10 +110,13 @@
 document.addEventListener('alpine:init', function () {
     Alpine.data('lekhyaAssistant', function (module, scope, firstName) {
         return {
-            open: false, busy: false, input: '',
+            open: false, busy: false, scanning: false, loaded: false, input: '',
             module: module, scope: scope, firstName: firstName,
             messages: [], remaining: null, unlimited: false,
-            toggle() { this.open = !this.open; },
+            toggle() {
+                this.open = !this.open;
+                if (this.open && !this.loaded) { this.loaded = true; this.loadHistory(); }
+            },
             suggestions() {
                 var m = (this.module || '').toLowerCase();
                 if (m.indexOf('invoice') > -1) return ['How do I scan a purchase bill?', 'Is GST inclusive or exclusive here?', 'How do I reverse a posted bill?'];
@@ -105,11 +128,17 @@ document.addEventListener('alpine:init', function () {
                 if (m.indexOf('report') > -1) return ['How do I export a P&L?', 'What is AR/AP aging?'];
                 return ['How do I record a sale?', 'How do I record a purchase bill?', 'Where do I file GST returns?'];
             },
+            loadHistory() {
+                fetch(@js(route('ai.history')), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then((j) => { if (Array.isArray(j.messages) && j.messages.length) { this.messages = j.messages; this.$nextTick(() => this.down()); } })
+                    .catch(() => {});
+            },
             send(preset) {
                 var msg = (preset || this.input).trim();
-                if (!msg || this.busy) return;
+                if (!msg || this.busy || this.scanning) return;
                 this.messages.push({ role: 'user', text: msg });
-                this.input = ''; this.busy = true;
+                this.input = ''; this.busy = true; this.loaded = true;
                 this.$nextTick(() => this.down());
                 fetch(@js(route('ai.ask')), {
                     method: 'POST',
@@ -122,6 +151,35 @@ document.addEventListener('alpine:init', function () {
                       if (res.j.remaining !== undefined) { this.remaining = res.j.remaining; this.unlimited = res.j.unlimited; }
                       this.$nextTick(() => this.down());
                   }).catch(() => { this.busy = false; this.messages.push({ role: 'ai', text: 'Network error — please try again.' }); this.$nextTick(() => this.down()); });
+            },
+            onFile(e) {
+                var file = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!file || this.busy || this.scanning) return;
+                this.messages.push({ role: 'user', text: '📎 ' + file.name });
+                this.scanning = true; this.loaded = true;
+                this.$nextTick(() => this.down());
+                var fd = new FormData();
+                fd.append('file', file); fd.append('module', this.module);
+                fetch(@js(route('ai.scan')), {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    body: fd
+                }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+                  .then((res) => {
+                      this.scanning = false;
+                      var j = res.j || {};
+                      this.messages.push({ role: 'ai', text: j.answer || 'Sorry, I could not read that file.', href: (res.ok && j.ok) ? j.review_url : null, cta: j.cta });
+                      if (j.remaining !== undefined) { this.remaining = j.remaining; this.unlimited = j.unlimited; }
+                      this.$nextTick(() => this.down());
+                  }).catch(() => { this.scanning = false; this.messages.push({ role: 'ai', text: 'Network error while scanning — please try again.' }); this.$nextTick(() => this.down()); });
+            },
+            clearHistory() {
+                if (!confirm('Clear your chat history?')) return;
+                fetch(@js(route('ai.history.clear')), {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                }).then(() => { this.messages = []; }).catch(() => {});
             },
             down() { var e = this.$refs.thread; if (e) e.scrollTop = e.scrollHeight; },
         };
