@@ -74,7 +74,7 @@ class LekhyaAiDriver implements AiDriverInterface
         $lastStatus = null;
         $lastBody   = null;
 
-        foreach ($this->chatModelChain() as $model) {
+        foreach ($this->textModelChain() as $model) {
             try {
                 $response = Http::timeout(45)->withToken($this->apiKey)->acceptJson()->post(self::ENDPOINT, [
                     'model'       => $model,
@@ -100,13 +100,15 @@ class LekhyaAiDriver implements AiDriverInterface
             }
         }
 
-        Log::warning('AI chat failed on all models', ['models' => $this->chatModelChain(), 'last_status' => $lastStatus, 'last_body' => $lastBody]);
+        Log::warning('AI chat failed on all models', ['models' => $this->textModelChain(), 'last_status' => $lastStatus, 'last_body' => $lastBody]);
         return '';
     }
 
-    /** Chat model candidates: configured text model first, then the multimodal models
-     *  (scanning proves they are live here) as insurance against a stale text model. */
-    private function chatModelChain(): array
+    /** Text/chat model candidates: configured text model first, then a current text
+     *  model, then the multimodal models (scanning proves they are live here) as
+     *  insurance against a stale/decommissioned text model. Used by both chat() and
+     *  the non-vision extraction path (PDFs with a text layer). */
+    private function textModelChain(): array
     {
         return array_values(array_unique(array_filter([
             $this->textModel,
@@ -119,9 +121,10 @@ class LekhyaAiDriver implements AiDriverInterface
 
     private function call(array $content, bool $vision = false): array
     {
-        // For vision, try each candidate model in turn — the provider deprecates vision
-        // models often, so if one is decommissioned we fall through to the next.
-        $models = $vision ? $this->visionModelChain() : [$this->textModel];
+        // Try each candidate model in turn — the provider decommissions models
+        // (both vision and text) without notice, so if one is gone we fall through
+        // to the next. PDFs with a text layer use this text path, not vision.
+        $models = $vision ? $this->visionModelChain() : $this->textModelChain();
         $last   = ['error' => 'AI engine error'];
 
         foreach ($models as $model) {
@@ -162,7 +165,9 @@ class LekhyaAiDriver implements AiDriverInterface
                 return $this->parseJsonResponse($response->json('choices.0.message.content', ''));
             }
 
-            $json = $response->json();
+            $json   = $response->json();
+            $detail = $this->errorDetail($json);
+            $gone   = $this->isModelUnavailable($response->status(), $detail);
 
             // The engine's JSON mode is strict: it 400s with json_validate_failed and
             // tucks the model's actual output into error.failed_generation, which
@@ -176,16 +181,16 @@ class LekhyaAiDriver implements AiDriverInterface
             }
 
             // Some models reject strict JSON mode outright — retry once in plain
-            // mode and pull the JSON out of the text ourselves.
-            if (! $vision && $jsonMode) {
+            // mode and pull the JSON out of the text ourselves. But if the model
+            // itself is gone, don't waste the retry — advance to the next model.
+            if (! $vision && $jsonMode && ! $gone) {
                 return $this->callModel($content, $model, $vision, jsonMode: false);
             }
 
-            $detail = $this->errorDetail($json);
             Log::warning('AI request failed', ['model' => $model, 'status' => $response->status(), 'body' => $response->body()]);
             return [
                 'error'             => 'AI engine error ' . $response->status() . ($detail ? ': ' . $detail : ''),
-                '_retry_next_model' => $vision && $this->isModelUnavailable($response->status(), $detail),
+                '_retry_next_model' => $gone,
             ];
         } catch (\Throwable $e) {
             Log::error('AI driver error', ['error' => $e->getMessage()]);
