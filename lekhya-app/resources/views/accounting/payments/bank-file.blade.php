@@ -62,11 +62,52 @@
             </div>
         </div>
         @endforeach
+
+        {{-- User-uploaded custom formats --}}
+        @foreach($templates as $t)
+        <div class="bg-white rounded-xl border border-navy-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="h-1.5 bg-navy-600"></div>
+            <div class="p-4 flex flex-col flex-1">
+                <div class="flex items-center gap-2.5 mb-2">
+                    <span class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 bg-navy-600"><i class="fa fa-file-csv"></i></span>
+                    <span class="font-semibold text-gray-900 text-sm leading-tight">{{ $t->name }}</span>
+                </div>
+                <p class="text-xs text-gray-400 flex-1">Your format · {{ count($t->headers) }} columns</p>
+                <div class="mt-3 flex items-center gap-2">
+                    <a href="{{ $readyCount ? route('accounting.payments.bankfile.download', 'custom-'.$t->id) : '#' }}"
+                       class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg
+                              {{ $readyCount ? 'bg-navy-600 text-white hover:bg-navy-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none' }}">
+                        <i class="fa fa-download"></i> Download
+                    </a>
+                    <form method="POST" action="{{ route('accounting.payments.bankfile.template.delete', $t) }}" onsubmit="return confirm('Delete this format?');">
+                        @csrf @method('DELETE')
+                        <button class="px-2.5 py-2 text-gray-400 hover:text-red-600 rounded-lg"><i class="fa fa-trash text-xs"></i></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endforeach
+    </div>
+
+    {{-- Upload your bank's own prescribed format --}}
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center gap-2 mb-1">
+            <i class="fa fa-file-arrow-up text-navy-500"></i>
+            <h3 class="font-semibold text-gray-800 text-sm">Upload your bank's format</h3>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">Have a sample file your bank prescribed? Upload it (a CSV with the header row) — we'll read its columns and let you map each one, then generate payment files in exactly that layout.</p>
+        <form method="POST" action="{{ route('accounting.payments.bankfile.template.upload') }}" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3">
+            @csrf
+            <input type="text" name="name" placeholder="Format name (e.g. My HDFC layout)" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <input type="file" name="file" accept=".csv,.txt" required
+                   class="text-xs file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-navy-50 file:text-navy-700 file:text-xs file:font-medium hover:file:bg-navy-100">
+            <button class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg"><i class="fa fa-arrow-right mr-1.5"></i>Read columns</button>
+        </form>
     </div>
 
     <p class="text-xs text-gray-400 flex items-start gap-2">
         <i class="fa fa-circle-info mt-0.5"></i>
-        <span>These layouts follow each bank's published bulk-upload template. Corporate portals sometimes differ by version or your host-to-host setup — if your bank rejects a column, adjust the header once to match your portal's sample file. Column names are provided; brand marks identify each bank only.</span>
+        <span>The built-in layouts follow each bank's published bulk-upload template. Corporate portals sometimes differ by version or your host-to-host setup — upload your bank's own sample above and map it once for an exact match. Column names are provided; brand marks identify each bank only.</span>
     </p>
 
     {{-- Vendors missing bank details --}}

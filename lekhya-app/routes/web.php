@@ -99,6 +99,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('payments/pending/export', [PaymentController::class, 'export'])->name('payments.export');
         // Bank payment-file builder (invoice-wise NEFT/RTGS upload per bank).
         Route::get('payments/bank-file', [PaymentController::class, 'bankFile'])->name('payments.bankfile');
+        Route::post('payments/bank-file/template', [PaymentController::class, 'uploadTemplate'])->name('payments.bankfile.template.upload');
+        Route::post('payments/bank-file/template/save', [PaymentController::class, 'storeTemplate'])->name('payments.bankfile.template.store');
+        Route::delete('payments/bank-file/template/{template}', [PaymentController::class, 'deleteTemplate'])->name('payments.bankfile.template.delete');
         Route::get('payments/bank-file/{bank}', [PaymentController::class, 'exportBank'])->name('payments.bankfile.download');
         Route::resource('journals', JournalController::class);
         Route::post('journals/{journal}/reverse', [JournalController::class, 'reverse'])->name('journals.reverse');

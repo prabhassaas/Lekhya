@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
+use App\Models\BankPaymentTemplate;
 use App\Models\Invoice;
 use App\Services\Banking\BankPaymentFormats;
 use Illuminate\Http\Request;
@@ -84,9 +85,11 @@ class PaymentController extends Controller
 
         $formats  = collect(BankPaymentFormats::all())->map(fn ($f, $key) => $f + ['key' => $key])->values();
         $payTotal = (float) $ready->sum('balance_amount');
+        $templates = BankPaymentTemplate::where('tenant_id', $tenantId)->latest()->get();
 
         return view('accounting.payments.bank-file', [
             'formats'      => $formats,
+            'templates'    => $templates,
             'readyCount'   => $ready->count(),
             'payTotal'     => $payTotal,
             'missing'      => $missing->values(),
@@ -94,12 +97,79 @@ class PaymentController extends Controller
         ]);
     }
 
+    /** Step 1: read the header row of an uploaded bank sample, guess a mapping. */
+    public function uploadTemplate(Request $request)
+    {
+        $request->validate(['file' => 'required|file|mimes:csv,txt|max:2048', 'name' => 'nullable|string|max:120']);
+
+        $rows = array_map(fn ($l) => str_getcsv($l, ',', '"', ''), array_filter(explode("\n", file_get_contents($request->file('file')->getRealPath()))));
+        $headers = collect($rows[0] ?? [])->map(fn ($h) => trim((string) $h))->filter()->values()->all();
+        if (! $headers) {
+            return back()->with('error', 'Could not read any column headers from that file. Make sure the first row has the column names.');
+        }
+
+        $guess = collect($headers)->mapWithKeys(fn ($h) => [$h => BankPaymentFormats::guessToken($h)])->all();
+        $name  = $request->input('name') ?: pathinfo($request->file('file')->getClientOriginalName(), PATHINFO_FILENAME);
+
+        return view('accounting.payments.bank-file-map', [
+            'headers' => $headers,
+            'guess'   => $guess,
+            'name'    => $name,
+            'tokens'  => BankPaymentFormats::tokens(),
+        ]);
+    }
+
+    /** Step 2: save the confirmed header→field mapping as a reusable template. */
+    public function storeTemplate(Request $request)
+    {
+        $data = $request->validate([
+            'name'      => 'required|string|max:120',
+            'headers'   => 'required|array|min:1',
+            'headers.*' => 'string',
+            'mapping'   => 'required|array',
+        ]);
+        $tokens = array_keys(BankPaymentFormats::tokens());
+        $mapping = collect($data['headers'])->mapWithKeys(function ($h) use ($request, $tokens) {
+            $t = (string) $request->input("mapping.$h", '');
+            return [$h => in_array($t, $tokens, true) ? $t : ''];
+        })->all();
+
+        BankPaymentTemplate::create([
+            'tenant_id'  => auth()->user()->tenant_id,
+            'name'       => $data['name'],
+            'headers'    => array_values($data['headers']),
+            'mapping'    => $mapping,
+            'created_by' => auth()->id(),
+        ]);
+
+        return redirect()->route('accounting.payments.bankfile')->with('success', 'Bank format saved. You can now download payment files in that layout.');
+    }
+
+    public function deleteTemplate(BankPaymentTemplate $template)
+    {
+        abort_if($template->tenant_id !== auth()->user()->tenant_id, 403);
+        $template->delete();
+
+        return back()->with('success', 'Bank format removed.');
+    }
+
     public function exportBank(Request $request, string $bank): StreamedResponse
     {
-        $format = BankPaymentFormats::find($bank);
-        abort_if(! $format, 404);
-
         $tenantId = auth()->user()->tenant_id;
+
+        // A user-uploaded custom format is keyed "custom-{id}".
+        $template = null;
+        $format = null;
+        if (str_starts_with($bank, 'custom-')) {
+            $template = BankPaymentTemplate::where('tenant_id', $tenantId)->find((int) substr($bank, 7));
+            abort_if(! $template, 404);
+            $headers = $template->headers;
+        } else {
+            $format = BankPaymentFormats::find($bank);
+            abort_if(! $format, 404);
+            $headers = BankPaymentFormats::headers($format);
+        }
+
         $invoices = $this->pendingQuery($tenantId, 'purchase')->with('party')
             ->orderByRaw('due_date IS NULL asc')->orderBy('due_date')->get()
             ->filter(fn ($i) => $i->party?->hasBankDetails())
@@ -109,15 +179,17 @@ class PaymentController extends Controller
         $own = BankAccount::where('tenant_id', $tenantId)->where('is_active', true)->first();
         $ctx = ['debit_account' => $own?->account_number ?? '', 'debit_ifsc' => $own?->ifsc_code ?? ''];
 
-        $headers  = BankPaymentFormats::headers($format);
-        $filename = 'payment-' . $bank . '-' . now()->format('Y-m-d') . '.csv';
+        $filename = 'payment-' . preg_replace('/[^a-z0-9\-]/i', '', $bank) . '-' . now()->format('Y-m-d') . '.csv';
 
-        return response()->streamDownload(function () use ($invoices, $headers, $format, $ctx) {
+        return response()->streamDownload(function () use ($invoices, $headers, $format, $template, $ctx) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, $headers, ',', '"', '');
             foreach ($invoices as $inv) {
-                fputcsv($out, BankPaymentFormats::row($format, $inv, $ctx), ',', '"', '');
+                $row = $template
+                    ? BankPaymentFormats::rowFromTemplate($template->headers, $template->mapping, $inv, $ctx)
+                    : BankPaymentFormats::row($format, $inv, $ctx);
+                fputcsv($out, $row, ',', '"', '');
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);

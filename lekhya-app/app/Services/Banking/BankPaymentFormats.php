@@ -191,4 +191,56 @@ class BankPaymentFormats
             default          => '',
         };
     }
+
+    /* ── Custom (user-uploaded) formats ─────────────────────────────── */
+
+    /** Fields a user can map each uploaded column header to. */
+    public static function tokens(): array
+    {
+        return [
+            'beneficiary'   => 'Beneficiary name',
+            'account'       => 'Account number',
+            'ifsc'          => 'IFSC',
+            'bank_name'     => 'Bank name',
+            'amount'        => 'Amount',
+            'mode'          => 'Payment mode (NEFT/RTGS)',
+            'email'         => 'Email',
+            'phone'         => 'Mobile',
+            'remark'        => 'Remark / invoice no',
+            'txn_ref'       => 'Invoice number',
+            'date'          => 'Date (YYYY-MM-DD)',
+            'date_dmy'      => 'Date (DD/MM/YYYY)',
+            'debit_account' => 'Debit / remitter account',
+            'debit_ifsc'    => 'Debit account IFSC',
+            'upi'           => 'UPI id',
+            ''              => '— leave blank —',
+        ];
+    }
+
+    /** Best-guess field for an uploaded header, so the mapping is pre-filled. */
+    public static function guessToken(string $header): string
+    {
+        $h = strtolower(trim($header));
+        return match (true) {
+            str_contains($h, 'email') || str_contains($h, 'mail')                 => 'email',
+            str_contains($h, 'ifsc') || str_contains($h, 'ifs')                   => 'ifsc',
+            str_contains($h, 'upi')                                               => 'upi',
+            str_contains($h, 'benef') || str_contains($h, 'payee')                => 'beneficiary',
+            str_contains($h, 'account') || str_contains($h, 'a/c') || str_contains($h, 'ac no') => 'account',
+            str_contains($h, 'bank')                                              => 'bank_name',
+            str_contains($h, 'amount') || str_contains($h, 'amt')                 => 'amount',
+            str_contains($h, 'mode') || str_contains($h, 'type')                  => 'mode',
+            str_contains($h, 'mobile') || str_contains($h, 'phone')               => 'phone',
+            str_contains($h, 'date')                                              => 'date_dmy',
+            str_contains($h, 'remark') || str_contains($h, 'narration') || str_contains($h, 'desc') || str_contains($h, 'ref') => 'remark',
+            (str_contains($h, 'name') && ! str_contains($h, 'bank'))              => 'beneficiary',
+            default                                                              => '',
+        };
+    }
+
+    /** Build a row for a user-uploaded template (ordered by its headers). */
+    public static function rowFromTemplate(array $headers, array $mapping, Invoice $inv, array $ctx = []): array
+    {
+        return array_map(fn ($h) => self::value((string) ($mapping[$h] ?? ''), $inv, $ctx), $headers);
+    }
 }
