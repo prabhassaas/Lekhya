@@ -6,12 +6,34 @@ use App\Services\Accounting\JournalEngine;
 use Illuminate\Http\Request;
 
 class JournalController extends Controller {
+    use \App\Http\Controllers\Concerns\SortsListings;
+
     public function __construct(private JournalEngine $engine) {}
 
-    public function index() {
+    public function index(Request $request) {
         $tenantId = auth()->user()->tenant_id;
-        $journals = Journal::where('tenant_id', $tenantId)->with('createdBy')->latest('date')->paginate(20);
-        return view('accounting.journals.index', compact('journals'));
+        $vtype    = (string) $request->get('vtype', '');
+        $valid    = ['sales', 'purchase', 'receipt', 'payment', 'contra', 'journal', 'reversal', 'opening'];
+
+        $query = Journal::where('tenant_id', $tenantId)->with('createdBy');
+        if (in_array($vtype, $valid, true)) {
+            $query->where('voucher_type', $vtype);
+        }
+
+        $this->applySort($query, $request, [
+            'voucher_number' => 'voucher_number',
+            'date'           => 'date',
+            'voucher_type'   => 'voucher_type',
+            'narration'      => 'narration',
+            'total_debit'    => 'total_debit',
+        ], fn($q) => $q->latest('date'));
+
+        // Per-type counts drive the tab badges (segregated movement view).
+        $counts = Journal::where('tenant_id', $tenantId)
+            ->selectRaw('voucher_type, count(*) as c')->groupBy('voucher_type')->pluck('c', 'voucher_type');
+
+        $journals = $query->paginate(20)->withQueryString();
+        return view('accounting.journals.index', compact('journals', 'vtype', 'counts'));
     }
     public function create() {
         $tenantId = auth()->user()->tenant_id;

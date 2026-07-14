@@ -62,14 +62,14 @@
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
-                    <th class="text-left px-5 py-2.5">{{ $partyLabel }}</th>
-                    <th class="text-left px-5 py-2.5">Bill / Ref</th>
-                    <th class="text-left px-5 py-2.5">Invoice #</th>
-                    <th class="text-left px-5 py-2.5">Date</th>
-                    <th class="text-left px-5 py-2.5">Due</th>
-                    <th class="text-right px-5 py-2.5">Total</th>
-                    <th class="text-right px-5 py-2.5">Balance</th>
-                    <th class="text-right px-5 py-2.5">Status</th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header :label="$partyLabel" column="party" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Bill / Ref" column="reference_number" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Invoice #" column="invoice_number" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Date" column="invoice_date" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Due" column="due_date" /></th>
+                    <th class="text-right px-5 py-2.5"><x-sort-header label="Total" column="total_amount" align="right" /></th>
+                    <th class="text-right px-5 py-2.5"><x-sort-header label="Balance" column="balance_amount" align="right" /></th>
+                    <th class="text-right px-5 py-2.5"><x-sort-header label="Status" column="status" align="right" /></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">

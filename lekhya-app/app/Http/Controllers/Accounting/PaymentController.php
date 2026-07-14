@@ -11,6 +11,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PaymentController extends Controller
 {
+    use \App\Http\Controllers\Concerns\SortsListings;
+
     /**
      * Pending payments from the recorded/uploaded bills.
      *  - payable    → purchases we still owe vendors (money out)
@@ -22,12 +24,18 @@ class PaymentController extends Controller
         $direction = $this->direction($request);
         $type      = $direction === 'receivable' ? 'sales' : 'purchase';
 
-        $invoices = $this->pendingQuery($tenantId, $type)
-            ->with('party')
-            ->orderByRaw('due_date IS NULL asc')  // dated bills first
-            ->orderBy('due_date')                  // then soonest/overdue first
-            ->paginate(25)
-            ->withQueryString();
+        $pending = $this->pendingQuery($tenantId, $type)->with('party');
+        $this->applySort($pending, $request, [
+            'reference_number' => 'reference_number',
+            'invoice_number'   => 'invoice_number',
+            'invoice_date'     => 'invoice_date',
+            'due_date'         => 'due_date',
+            'total_amount'     => 'total_amount',
+            'balance_amount'   => 'balance_amount',
+            'status'           => 'status',
+            'party'            => fn($q, $dir) => $q->orderBy(\App\Models\Party::select('name')->whereColumn('parties.id', 'invoices.party_id'), $dir),
+        ], fn($q) => $q->orderByRaw('due_date IS NULL asc')->orderBy('due_date'));
+        $invoices = $pending->paginate(25)->withQueryString();
 
         $summary = $this->summary($tenantId, $type);
 

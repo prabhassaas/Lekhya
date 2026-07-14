@@ -10,15 +10,23 @@
         </a>
     </div>
 
+    @php
+        $jtabs = ['' => ['label' => 'All', 'count' => $counts->sum()]];
+        foreach (['sales' => 'Sales', 'purchase' => 'Purchase', 'receipt' => 'Receipt', 'payment' => 'Payment', 'contra' => 'Contra', 'journal' => 'Journal', 'reversal' => 'Reversal', 'opening' => 'Opening'] as $k => $lbl) {
+            if (($counts[$k] ?? 0) > 0) { $jtabs[$k] = ['label' => $lbl, 'count' => $counts[$k]]; }
+        }
+    @endphp
+    <x-filter-tabs :tabs="$jtabs" :active="$vtype" param="vtype" />
+
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
-                    <th class="text-left px-5 py-2.5">Voucher #</th>
-                    <th class="text-left px-5 py-2.5">Date</th>
-                    <th class="text-left px-5 py-2.5">Type</th>
-                    <th class="text-left px-5 py-2.5">Narration</th>
-                    <th class="text-right px-5 py-2.5">Amount</th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Voucher #" column="voucher_number" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Date" column="date" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Type" column="voucher_type" /></th>
+                    <th class="text-left px-5 py-2.5"><x-sort-header label="Narration" column="narration" /></th>
+                    <th class="text-right px-5 py-2.5"><x-sort-header label="Amount" column="total_debit" align="right" /></th>
                     <th class="text-left px-5 py-2.5">Created By</th>
                     <th class="text-right px-5 py-2.5">Status</th>
                 </tr>
