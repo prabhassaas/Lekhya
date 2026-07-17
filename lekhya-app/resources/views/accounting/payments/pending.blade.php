@@ -23,9 +23,13 @@
             </a>
         </div>
         <div class="flex gap-2">
+            <a href="{{ route('accounting.payments.record', ['type' => $isPayable ? 'payment' : 'receipt']) }}"
+               class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">
+                <i class="fa fa-hand-holding-dollar mr-1.5"></i>{{ $isPayable ? 'Record payment' : 'Record receipt' }}
+            </a>
             @if($isPayable)
             <a href="{{ route('accounting.payments.bankfile') }}"
-               class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">
+               class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg">
                 <i class="fa fa-building-columns mr-1.5"></i>Bank payment file
             </a>
             @endif

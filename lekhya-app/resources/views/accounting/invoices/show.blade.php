@@ -46,6 +46,12 @@
                 <button class="px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50">Cancel</button>
             </form>
             @endif
+            @if(in_array($invoice->status, ['posted', 'partially_paid']) && $invoice->balance_amount > 0)
+            <a href="{{ route('accounting.payments.record', ['type' => $invoice->type === 'sales' ? 'receipt' : 'payment', 'party_id' => $invoice->party_id]) }}"
+               class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg">
+                <i class="fa fa-hand-holding-dollar mr-1.5"></i>{{ $invoice->type === 'sales' ? 'Record receipt' : 'Record payment' }}
+            </a>
+            @endif
             @if($invoice->status === 'posted' && $invoice->type === 'sales' && !$invoice->irn)
             <a href="{{ route('gst.einvoice', $invoice) }}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
                 <i class="fa fa-qrcode mr-1.5"></i>Generate e-Invoice

@@ -74,8 +74,11 @@
             <a href="{{ route('accounting.parties.index') }}" class="nav-link @active('accounting.parties*')">
                 <i class="fa fa-address-book w-5"></i> <span>Vendors &amp; Customers</span>
             </a>
-            <a href="{{ route('accounting.payments.pending') }}" class="nav-link @active('accounting.payments*')">
+            <a href="{{ route('accounting.payments.pending') }}" class="nav-link @active('accounting.payments.pending', 'accounting.payments.bankfile*', 'accounting.payments.export')">
                 <i class="fa fa-money-bill-wave w-5"></i> <span>Pending Payments</span>
+            </a>
+            <a href="{{ route('accounting.payments.history') }}" class="nav-link @active('accounting.payments.record*', 'accounting.payments.history', 'accounting.payments.show')">
+                <i class="fa fa-hand-holding-dollar w-5"></i> <span>Receipts &amp; Payments</span>
             </a>
             <a href="{{ route('accounting.journals.index') }}" class="nav-link @active('accounting.journals*')">
                 <i class="fa fa-book w-5"></i> <span>Journal Vouchers</span>

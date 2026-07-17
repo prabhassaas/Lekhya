@@ -94,6 +94,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::put('parties/{party}', [PartyController::class, 'update'])->name('parties.update');
         Route::delete('parties/{party}', [PartyController::class, 'destroy'])->name('parties.destroy');
 
+        // Record & settle receipts / payments (clears AR/AP with a voucher).
+        Route::get('payments/record', [\App\Http\Controllers\Accounting\ReceiptPaymentController::class, 'create'])->name('payments.record');
+        Route::post('payments/record', [\App\Http\Controllers\Accounting\ReceiptPaymentController::class, 'store'])->name('payments.record.store');
+        Route::get('payments/history', [\App\Http\Controllers\Accounting\ReceiptPaymentController::class, 'index'])->name('payments.history');
+        Route::get('payments/history/{payment}', [\App\Http\Controllers\Accounting\ReceiptPaymentController::class, 'show'])->name('payments.show');
+
         // Pending payments (payables / receivables) from recorded bills.
         Route::get('payments/pending', [PaymentController::class, 'pending'])->name('payments.pending');
         Route::get('payments/pending/export', [PaymentController::class, 'export'])->name('payments.export');
