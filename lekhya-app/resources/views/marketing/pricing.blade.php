@@ -712,6 +712,42 @@
 </section>
 
 {{-- ═══════════════════════════════════════════════════════════
+     SECTION 4c — SEEDHA BILL CONNECTIONS PER PLAN
+═══════════════════════════════════════════════════════════ --}}
+<section class="py-16 bg-gray-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-8">
+            <span class="text-xs font-bold text-navy-500 uppercase tracking-widest"><i class="fa fa-plug mr-1"></i>Seedha Bill</span>
+            <h2 class="text-3xl font-bold text-navy-600 mt-1">One company, one Seedha Bill account</h2>
+            <p class="text-gray-500 mt-2 max-w-2xl mx-auto">Each Seedha Bill account syncs into one Lekhya company. Manage more businesses by connecting more accounts — your plan decides how many run at once.</p>
+        </div>
+        <div class="grid sm:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+                <p class="text-sm font-semibold text-gray-700">ERP Lite</p>
+                <p class="text-2xl font-extrabold text-navy-600 mt-1">1</p>
+                <p class="text-xs text-gray-500 mt-1">connection</p>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+                <p class="text-sm font-semibold text-gray-700">ERP Pro</p>
+                <p class="text-2xl font-extrabold text-navy-600 mt-1">3</p>
+                <p class="text-xs text-gray-500 mt-1">connections</p>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+                <p class="text-sm font-semibold text-gray-700">Pramaan</p>
+                <p class="text-2xl font-extrabold text-navy-600 mt-1">10+</p>
+                <p class="text-xs text-gray-500 mt-1">one per client book</p>
+            </div>
+            <div class="bg-navy-600 rounded-2xl shadow-sm p-5 text-center text-white ring-2 ring-amber-400">
+                <p class="text-sm font-semibold">Full Suite</p>
+                <p class="text-2xl font-extrabold mt-1">∞</p>
+                <p class="text-xs text-navy-100 mt-1">unlimited</p>
+            </div>
+        </div>
+        <p class="text-center text-xs text-gray-400 mt-5">Upgrade or downgrade anytime from <strong>Settings → Billing</strong>; connection limits apply instantly. Revoke a connection to free a slot. Imported bills always land in the review queue — nothing posts to your ledger until you approve.</p>
+    </div>
+</section>
+
+{{-- ═══════════════════════════════════════════════════════════
      SECTION 5 — FAQ  (Alpine.js accordion)
 ═══════════════════════════════════════════════════════════ --}}
 <section class="py-16">

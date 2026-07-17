@@ -117,6 +117,11 @@
             </div>
             @endforeach
         </div>
+        <p class="mt-8 text-sm text-gray-500 max-w-2xl mx-auto">
+            <i class="fa fa-plug text-navy-500 mr-1"></i>
+            <strong>One Seedha Bill account links to one Lekhya company.</strong>
+            Solo runs a single connection; Practice and Firm add one per client book — upgrade or downgrade anytime from Settings → Billing.
+        </p>
         <p class="mt-8 text-sm text-gray-500">
             Also available: <strong>Lekhya Pramaan</strong> for Chartered Accountants (UDIN, DSC, Audit toolkits).
             <a href="{{ route('marketing.pricing') }}" class="text-navy-600 font-medium">See full pricing →</a>

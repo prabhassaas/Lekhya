@@ -10,17 +10,27 @@ use Illuminate\Support\Str;
 class ConnectorController extends Controller {
     public function index() {
         $tenantId = auth()->user()->tenant_id;
+        $tenant   = auth()->user()->tenant;
         $tokens = ConnectorToken::where('tenant_id', $tenantId)->with('createdBy')->latest()->get();
         $connections = ConnectorConnection::where('tenant_id', $tenantId)->latest()->get();
-        return view('connector.index', compact('tokens', 'connections'));
+        $connLimit = [
+            'used'      => $tenant->seedhaBillConnectionsUsed(),
+            'limit'     => $tenant->seedhaBillConnectionLimit(),
+            'unlimited' => $tenant->seedhaBillConnectionsUnlimited(),
+            'plan'      => $tenant->activePlan()?->name,
+        ];
+        return view('connector.index', compact('tokens', 'connections', 'connLimit'));
     }
 
     public function generateToken(Request $request) {
         $request->validate(['label' => 'required|string|max:100', 'expires_days' => 'nullable|integer|min:1|max:365']);
         $tenantId = auth()->user()->tenant_id;
-        $entitlement = auth()->user()->tenant->entitlements()->where('app','lekhya')->where('is_active',true)->first();
-        if ($entitlement && $entitlement->client_seats_used >= $entitlement->client_seat_limit) {
-            return back()->with('error', "Client seat limit ({$entitlement->client_seat_limit}) reached. Please upgrade your plan.");
+        $tenant   = auth()->user()->tenant;
+        // One Seedha Bill account = one active token. The plan sets how many a
+        // company may run at once — block over-limit and point to the upgrade.
+        if (! $tenant->canAddSeedhaBillConnection()) {
+            $limit = $tenant->seedhaBillConnectionLimit();
+            return back()->with('error', "Your plan allows {$limit} Seedha Bill connection" . ($limit === 1 ? '' : 's') . ". Revoke an existing one or upgrade your plan to connect more.");
         }
         $rawToken = 'LKY-' . Str::random(32);
         ConnectorToken::create([

@@ -22,6 +22,25 @@
         </div>
     </div>
 
+    {{-- Plan connection allowance — one Seedha Bill account per active connection. --}}
+    @isset($connLimit)
+    @php $atLimit = ! $connLimit['unlimited'] && $connLimit['used'] >= $connLimit['limit']; @endphp
+    <div class="flex items-center justify-between gap-4 rounded-xl border {{ $atLimit ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-white' }} shadow-sm px-5 py-3">
+        <div class="text-sm">
+            <span class="font-medium text-gray-800">Seedha Bill connections</span>
+            <span class="text-gray-500">
+                — using <strong>{{ $connLimit['used'] }}</strong> of
+                <strong>{{ $connLimit['unlimited'] ? '∞' : $connLimit['limit'] }}</strong>
+                @if($connLimit['plan'])<span class="text-gray-400">on the {{ $connLimit['plan'] }} plan</span>@endif
+            </span>
+            <p class="text-xs text-gray-400 mt-0.5">Each connection links one Seedha Bill account (one company) to this workspace.</p>
+        </div>
+        @if($atLimit)
+        <a href="{{ route('settings.billing') }}" class="shrink-0 px-3.5 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">Upgrade plan</a>
+        @endif
+    </div>
+    @endisset
+
     {{-- Flash: freshly generated token (shown once) --}}
     @if(session('token_generated'))
     <div class="bg-green-50 border border-green-200 rounded-xl p-5" x-data="{ copied: false }">

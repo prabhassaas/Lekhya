@@ -131,4 +131,61 @@ class Tenant extends Model
     {
         return $this->aiEnabled() && ! $this->aiCreditsUnlimited() && $this->aiCreditsRemaining() <= 0;
     }
+
+    /**
+     * How many Seedha Bill accounts this company may connect. The model is
+     * one Seedha Bill account per active connector token; the plan sets how
+     * many such connections a company gets. Driven by the plan's
+     * features['seedha_bill_connections'] (int, or null = unlimited); trial /
+     * no-plan gets one.
+     */
+    public function seedhaBillConnectionLimit(): int
+    {
+        $plan = $this->activePlan();
+        if (! $plan) {
+            return 1; // trial / no subscription — a single connection
+        }
+        $features = is_array($plan->features) ? $plan->features : [];
+
+        // Explicit override if a plan sets an associative key.
+        if (array_key_exists('seedha_bill_connections', $features)) {
+            $v = $features['seedha_bill_connections'];
+            return $v === null ? PHP_INT_MAX : max(1, (int) $v);
+        }
+
+        // Otherwise derive from the plan. "Companies you manage" == Seedha Bill
+        // connections, so it tracks the client-seat allowance; the full suite is
+        // unlimited and ERP Pro gets a few even on a single seat.
+        if (in_array('all', $features, true) || $plan->tier === 'suite') {
+            return PHP_INT_MAX;
+        }
+        $seats = (int) ($plan->client_seat_limit ?? 1);
+        if ($seats >= 9999) {
+            return PHP_INT_MAX;
+        }
+        if ($seats > 1) {
+            return $seats;
+        }
+        return $plan->tier === 'pro' ? 3 : 1;
+    }
+
+    public function seedhaBillConnectionsUnlimited(): bool
+    {
+        return $this->seedhaBillConnectionLimit() >= PHP_INT_MAX;
+    }
+
+    /** Active (non-revoked, unexpired) connector tokens = live Seedha Bill links. */
+    public function seedhaBillConnectionsUsed(): int
+    {
+        return $this->hasMany(ConnectorToken::class)
+            ->whereNull('revoked_at')
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->count();
+    }
+
+    public function canAddSeedhaBillConnection(): bool
+    {
+        return $this->seedhaBillConnectionsUnlimited()
+            || $this->seedhaBillConnectionsUsed() < $this->seedhaBillConnectionLimit();
+    }
 }
