@@ -110,13 +110,16 @@ class ReceiptPaymentService
                 'tenant_id'             => $tenantId,
                 'fiscal_year_id'        => $fy->id,
                 'type'                  => $type,
-                'reference_number'      => $journal->voucher_number,
+                // Globally unique (the scaffolded column carries a global unique):
+                // voucher number is unique per tenant, journal id makes it global.
+                'reference_number'      => $journal->voucher_number . '-' . $journal->id,
                 'party_id'              => $data['party_id'],
                 'account_id'            => $ledger->id,
                 'date'                  => $data['payment_date'],
                 'amount'                => $gross,
                 'tds_amount'            => $tds,
-                'payment_mode'          => $data['mode'] ?? null,
+                'payment_mode'          => ($data['mode'] ?? null) ?: 'bank_transfer', // column is NOT NULL
+
                 'transaction_reference' => $ref !== '' ? $ref : null,
                 'narration'             => $data['notes'] ?? null,
                 'journal_id'            => $journal->id,
