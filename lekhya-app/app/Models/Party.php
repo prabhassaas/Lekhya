@@ -4,7 +4,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 class Party extends Model {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, \App\Models\Concerns\Auditable;
     protected $fillable = ['tenant_id','type','classification','name','display_name','gstin','pan','email','phone','address','city','state','state_code','pincode','bank_name','bank_account_number','bank_ifsc','bank_account_holder','upi_id','tds_rate','tds_section','receivable_account_id','payable_account_id','is_active'];
     protected $casts = ['is_active' => 'boolean', 'tds_rate' => 'decimal:2'];
 

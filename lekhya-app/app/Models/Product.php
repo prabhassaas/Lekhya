@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, \App\Models\Concerns\Auditable;
 
     protected $fillable = [
         'tenant_id', 'name', 'sku', 'type', 'dimension', 'quality', 'unit',

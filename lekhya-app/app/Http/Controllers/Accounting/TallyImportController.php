@@ -36,10 +36,12 @@ class TallyImportController extends Controller {
     }
 
     public function preview(TallyImport $import) {
+        abort_if($import->tenant_id !== auth()->user()->tenant_id, 403);
         return view('accounting.tally.preview', compact('import'));
     }
 
     public function run(TallyImport $import) {
+        abort_if($import->tenant_id !== auth()->user()->tenant_id, 403);
         try {
             $result = $this->migration->import($import, auth()->user()->tenant_id, auth()->id());
             return redirect()->route('accounting.tally.index')

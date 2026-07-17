@@ -2,6 +2,7 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 class BankTransaction extends Model {
+    use \App\Models\Concerns\Auditable;
     protected $fillable = ['tenant_id','bank_account_id','transaction_date','description','reference','debit','credit','balance','status','journal_line_id','source'];
     protected $casts = ['transaction_date'=>'date','debit'=>'decimal:4','credit'=>'decimal:4','balance'=>'decimal:4'];
     public function bankAccount() { return $this->belongsTo(BankAccount::class); }

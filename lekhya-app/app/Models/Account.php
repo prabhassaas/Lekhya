@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Account extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, \App\Models\Concerns\Auditable;
 
     protected $fillable = [
         'tenant_id', 'code', 'name', 'type', 'sub_type', 'parent_id',

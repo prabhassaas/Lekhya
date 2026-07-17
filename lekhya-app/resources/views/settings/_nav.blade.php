@@ -3,6 +3,7 @@
         ['settings.company', 'Company', 'fa-building'],
         ['settings.fiscal_years', 'Fiscal Years', 'fa-calendar'],
         ['settings.users', 'Users & Roles', 'fa-users'],
+        ['settings.audit_trail', 'Audit Trail', 'fa-clipboard-list'],
         ['settings.billing', 'Billing', 'fa-credit-card'],
     ];
 @endphp

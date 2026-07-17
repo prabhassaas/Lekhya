@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, \App\Models\Concerns\Auditable;
 
     protected $fillable = [
         'tenant_id', 'fiscal_year_id', 'type', 'document_type', 'invoice_number', 'reference_number',
