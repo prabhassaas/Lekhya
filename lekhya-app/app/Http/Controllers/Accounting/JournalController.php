@@ -65,6 +65,7 @@ class JournalController extends Controller {
         }
     }
     public function show(Journal $journal) {
+        abort_if($journal->tenant_id !== auth()->user()->tenant_id, 403);
         return view('accounting.journals.show', compact('journal'));
     }
     public function edit(Journal $journal) { return back()->with('error', 'Posted journals cannot be edited. Use a reversal.'); }
@@ -72,6 +73,7 @@ class JournalController extends Controller {
     public function destroy(Journal $journal) { return back()->with('error', 'Journals cannot be deleted.'); }
 
     public function reverse(Journal $journal, Request $request) {
+        abort_if($journal->tenant_id !== auth()->user()->tenant_id, 403);
         $request->validate(['date' => 'required|date', 'reason' => 'nullable|string|max:255']);
         try {
             $reversal = $this->engine->reverse($journal, $request->date, auth()->id(), $request->reason ?? '');

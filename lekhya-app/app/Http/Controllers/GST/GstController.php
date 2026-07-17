@@ -152,10 +152,12 @@ class GstController extends Controller {
     }
 
     public function eInvoice(Invoice $invoice) {
+        abort_if($invoice->tenant_id !== auth()->user()->tenant_id, 403);
         return view('gst.einvoice', compact('invoice'));
     }
 
     public function generateIrn(Invoice $invoice) {
+        abort_if($invoice->tenant_id !== auth()->user()->tenant_id, 403);
         if ($invoice->irn) return back()->with('error', 'IRN already generated for this invoice.');
         $payload = ['invoice_number' => $invoice->invoice_number, 'total' => $invoice->total_amount, 'gstin' => $invoice->tenant->gstin];
         $result = $this->gateway->generateIrn($payload);

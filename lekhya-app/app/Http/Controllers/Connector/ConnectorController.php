@@ -46,6 +46,7 @@ class ConnectorController extends Controller {
     }
 
     public function revokeToken(ConnectorToken $token) {
+        abort_if($token->tenant_id !== auth()->user()->tenant_id, 403);
         $token->update(['is_active' => false, 'revoked_by' => auth()->id(), 'revoked_at' => now()]);
         ConnectorEvent::create(['tenant_id' => auth()->user()->tenant_id, 'event_type' => 'token.revoked', 'description' => "Token '{$token->label}' revoked", 'actor_id' => auth()->id()]);
         // Disable all connections using this token
@@ -63,11 +64,13 @@ class ConnectorController extends Controller {
     }
 
     public function approveQueued(ConnectorImportQueue $item, Request $request) {
+        abort_if($item->tenant_id !== auth()->user()->tenant_id, 403);
         $item->update(['status' => 'validated', 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);
         return back()->with('success', 'Item approved for posting.');
     }
 
     public function rejectQueued(ConnectorImportQueue $item) {
+        abort_if($item->tenant_id !== auth()->user()->tenant_id, 403);
         $item->update(['status' => 'skipped', 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);
         return back()->with('success', 'Item rejected and skipped.');
     }
