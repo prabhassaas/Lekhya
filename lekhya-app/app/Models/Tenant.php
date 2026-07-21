@@ -13,6 +13,7 @@ class Tenant extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'owner_tenant_id',
         'name', 'slug', 'gstin', 'pan', 'phone', 'email',
         'address', 'city', 'state', 'state_code', 'pincode', 'country',
         'logo_path', 'letterhead_path', 'fiscal_year_start', 'currency', 'settings', 'is_active',
@@ -44,6 +45,27 @@ class Tenant extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    /** The primary company this one belongs to (null when it IS the primary). */
+    public function ownerTenant(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Tenant::class, 'owner_tenant_id');
+    }
+
+    /** Users who can access this company (multi-company membership). */
+    public function members(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'company_user')->withPivot('role')->withTimestamps();
+    }
+
+    /**
+     * The company whose subscription/entitlement governs this one. A secondary
+     * company inherits its primary's plan, so one subscription covers them all.
+     */
+    public function billingTenant(): Tenant
+    {
+        return $this->owner_tenant_id ? ($this->ownerTenant ?? $this) : $this;
+    }
+
     public function aiSetting()
     {
         return $this->hasOne(AiSetting::class);
@@ -71,7 +93,7 @@ class Tenant extends Model
 
     public function hasEntitlement(string $app, string $edition): bool
     {
-        return $this->entitlements()
+        return $this->billingTenant()->entitlements()
             ->where('app', $app)
             ->where('edition', $edition)
             ->where('is_active', true)
@@ -86,7 +108,7 @@ class Tenant extends Model
     /** AI is auto-enabled for any tenant on an active subscription or trial. */
     public function aiEnabled(): bool
     {
-        return $this->entitlements()
+        return $this->billingTenant()->entitlements()
             ->where('app', 'lekhya')
             ->where('is_active', true)
             ->exists();
@@ -95,7 +117,7 @@ class Tenant extends Model
     /** The plan currently powering this tenant (active/trial subscription), if any. */
     public function activePlan(): ?Plan
     {
-        return $this->subscriptions()
+        return $this->billingTenant()->subscriptions()
             ->whereIn('status', ['active', 'trial'])
             ->latest()
             ->first()?->plan;
@@ -139,6 +161,36 @@ class Tenant extends Model
      * features['seedha_bill_connections'] (int, or null = unlimited); trial /
      * no-plan gets one.
      */
+    /**
+     * How many companies this account may run (multi-company). More generous
+     * than the Seedha Bill connection cap so trials can experience it: trial/no
+     * plan = 2, Lite = 2, Pro/Lifetime = 5, Pramaan = per client seat, Suite =
+     * unlimited. Override with the plan feature 'company_limit'.
+     */
+    public function companyLimit(): int
+    {
+        $plan = $this->activePlan();
+        if (! $plan) {
+            return 2;
+        }
+        $features = is_array($plan->features) ? $plan->features : [];
+        if (array_key_exists('company_limit', $features)) {
+            $v = $features['company_limit'];
+            return $v === null ? PHP_INT_MAX : max(1, (int) $v);
+        }
+        if (in_array('all', $features, true) || $plan->tier === 'suite') {
+            return PHP_INT_MAX;
+        }
+        $seats = (int) ($plan->client_seat_limit ?? 1);
+        if ($seats >= 9999) {
+            return PHP_INT_MAX;
+        }
+        if ($seats > 1) {
+            return $seats;
+        }
+        return in_array($plan->tier, ['pro', 'lifetime'], true) ? 5 : 2;
+    }
+
     public function seedhaBillConnectionLimit(): int
     {
         $plan = $this->activePlan();

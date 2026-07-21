@@ -20,6 +20,17 @@ class User extends Authenticatable
 
     protected $hidden = ['password', 'remember_token'];
 
+    protected static function booted(): void
+    {
+        // Every user is a member of the company they're created in (covers
+        // registration, Google/SSO signup and invited team members). Idempotent.
+        static::created(function (self $user) {
+            if ($user->tenant_id) {
+                $user->companies()->syncWithoutDetaching([$user->tenant_id => ['role' => 'owner']]);
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
@@ -34,5 +45,34 @@ class User extends Authenticatable
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    /** Companies (tenants) this user can access and switch between. */
+    public function companies(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Tenant::class, 'company_user')->withPivot('role')->withTimestamps();
+    }
+
+    public function companiesCount(): int
+    {
+        return $this->companies()->count();
+    }
+
+    /** How many companies this user's plan allows. */
+    public function companyLimit(): int
+    {
+        return $this->tenant?->companyLimit() ?? 2;
+    }
+
+    public function canAddCompany(): bool
+    {
+        $limit = $this->companyLimit();
+        return $limit >= PHP_INT_MAX || $this->companiesCount() < $limit;
+    }
+
+    /** The user's primary company (the one holding the subscription). */
+    public function primaryCompanyId(): ?int
+    {
+        return $this->tenant?->owner_tenant_id ?? $this->tenant_id;
     }
 }

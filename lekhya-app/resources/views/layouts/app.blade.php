@@ -263,28 +263,68 @@
                 </div>
             </div>
 
-            {{-- AI credits pie --}}
+            {{-- AI credits pie — click opens a hanging popup (no page load) --}}
             @php
                 $__t = auth()->user()->tenant;
                 $__used = $__t?->aiCreditsUsed() ?? 0;
                 $__unl = $__t?->aiCreditsUnlimited() ?? false;
                 $__lim = $__unl ? 0 : ($__t?->aiCreditLimit() ?? 0);
+                $__rem = $__t?->aiCreditsRemaining() ?? 0;
                 $__pct = $__lim > 0 ? min(100, round($__used / $__lim * 100)) : 0;
                 $__c = 2 * M_PI * 10; $__d = $__c * $__pct / 100;
                 $__ring = $__pct >= 90 ? '#dc2626' : ($__pct >= 70 ? '#f59e0b' : '#4ade80');
+                $__byType = $__unl ? collect() : \App\Models\AiUsage::where('tenant_id', $__t?->id)->where('billable', true)
+                    ->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)
+                    ->selectRaw('type, count(*) as c')->groupBy('type')->pluck('c', 'type');
+                $__typeLabels = ['extraction' => 'Invoice scans', 'assistant' => 'AI questions', 'nl_query' => 'NL queries', 'account_coding' => 'Auto-coding', 'anomaly' => 'Anomaly checks'];
             @endphp
-            <a href="{{ route('ai.credits') }}" title="AI credits used — click for history"
-               class="hidden sm:flex items-center gap-1.5 shrink-0 text-gray-600 hover:text-navy-700">
-                @if($__unl)
-                    <i class="fa fa-infinity text-navy-500"></i><span class="text-xs font-medium hidden md:inline">Credits</span>
-                @else
-                    <svg viewBox="0 0 24 24" class="w-6 h-6 -rotate-90">
-                        <circle cx="12" cy="12" r="10" fill="none" stroke="#e5e7eb" stroke-width="3"/>
-                        <circle cx="12" cy="12" r="10" fill="none" stroke="{{ $__ring }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ $__d }} {{ $__c }}"/>
-                    </svg>
-                    <span class="text-xs font-medium">{{ $__used }}<span class="text-gray-400">/{{ $__lim }}</span></span>
-                @endif
-            </a>
+            <div class="relative hidden sm:block shrink-0" x-data="{ creditsOpen: false }" @click.outside="creditsOpen = false" @keydown.escape="creditsOpen = false">
+                <button type="button" @click="creditsOpen = !creditsOpen" title="AI credits"
+                        class="flex items-center gap-1.5 text-gray-600 hover:text-navy-700">
+                    @if($__unl)
+                        <i class="fa fa-infinity text-navy-500"></i><span class="text-xs font-medium hidden md:inline">Credits</span>
+                    @else
+                        <svg viewBox="0 0 24 24" class="w-6 h-6 -rotate-90">
+                            <circle cx="12" cy="12" r="10" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+                            <circle cx="12" cy="12" r="10" fill="none" stroke="{{ $__ring }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ $__d }} {{ $__c }}"/>
+                        </svg>
+                        <span class="text-xs font-medium">{{ $__used }}<span class="text-gray-400">/{{ $__lim }}</span></span>
+                    @endif
+                    <i class="fa fa-chevron-down text-[9px] text-gray-400"></i>
+                </button>
+                <div x-show="creditsOpen" x-transition x-cloak
+                     class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                    <div class="px-4 py-3 bg-navy-600 text-white">
+                        <p class="text-[11px] uppercase tracking-wider text-navy-200">AI credits · {{ now()->format('M Y') }}</p>
+                        @if($__unl)
+                            <p class="text-lg font-bold"><i class="fa fa-infinity mr-1"></i>Unlimited</p>
+                        @else
+                            <p class="text-lg font-bold">{{ $__used }} <span class="text-navy-200 text-sm font-normal">of {{ $__lim }} used</span></p>
+                            <div class="mt-2 h-1.5 rounded-full bg-navy-800/50 overflow-hidden">
+                                <div class="h-full rounded-full" style="width: {{ $__pct }}%; background: {{ $__ring }}"></div>
+                            </div>
+                            <p class="text-[11px] text-navy-200 mt-1">{{ $__rem }} credits left · resets on the 1st</p>
+                        @endif
+                    </div>
+                    @unless($__unl)
+                    <div class="p-3">
+                        <p class="text-[11px] uppercase tracking-wider text-gray-400 mb-1.5">This month by type</p>
+                        @forelse($__byType as $__type => $__count)
+                        <div class="flex items-center justify-between text-sm py-1">
+                            <span class="text-gray-600">{{ $__typeLabels[$__type] ?? ucwords(str_replace('_', ' ', $__type)) }}</span>
+                            <span class="font-medium text-gray-800">{{ $__count }}</span>
+                        </div>
+                        @empty
+                        <p class="text-sm text-gray-400 py-1">No AI actions yet this month.</p>
+                        @endforelse
+                    </div>
+                    @endunless
+                    <div class="px-3 py-2.5 border-t border-gray-100 flex items-center justify-between">
+                        <a href="{{ route('ai.credits') }}" class="text-sm text-navy-600 font-medium hover:underline">Full history →</a>
+                        <span class="text-[11px] text-gray-400">1 credit = 1 AI action</span>
+                    </div>
+                </div>
+            </div>
 
             <span class="hidden lg:block text-sm text-gray-500 shrink-0">{{ now()->format('d M Y') }}</span>
 
@@ -303,6 +343,36 @@
                         <p class="text-sm font-medium text-gray-800 truncate">{{ auth()->user()->name }}</p>
                         <p class="text-xs text-gray-400 truncate">{{ auth()->user()->tenant?->name }}</p>
                     </div>
+                    @php $__companies = auth()->user()->companies()->orderBy('name')->get(); @endphp
+                    @if($__companies->count() > 1 || auth()->user()->canAddCompany())
+                    <div class="px-3 py-2 border-b border-gray-100">
+                        <p class="text-[11px] uppercase tracking-wider text-gray-400 px-1 mb-1">Companies</p>
+                        <div class="max-h-52 overflow-y-auto">
+                        @foreach($__companies as $__co)
+                            @if($__co->id === auth()->user()->tenant_id)
+                            <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm bg-navy-50 text-navy-700 font-medium">
+                                <i class="fa fa-circle-check text-navy-500 w-4"></i><span class="truncate">{{ $__co->name }}</span>
+                            </div>
+                            @else
+                            <form method="POST" action="{{ route('companies.switch', $__co) }}">
+                                @csrf
+                                <button type="submit" class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-left text-gray-700 hover:bg-gray-50">
+                                    <i class="fa fa-building text-gray-300 w-4"></i><span class="truncate">{{ $__co->name }}</span>
+                                </button>
+                            </form>
+                            @endif
+                        @endforeach
+                        </div>
+                        <div class="flex items-center justify-between px-1 mt-1">
+                            @if(auth()->user()->canAddCompany())
+                            <a href="{{ route('companies.create') }}" class="text-xs text-navy-600 font-medium hover:underline"><i class="fa fa-plus mr-1"></i>Add company</a>
+                            @else
+                            <span class="text-[11px] text-gray-400">Plan limit reached</span>
+                            @endif
+                            <a href="{{ route('companies.index') }}" class="text-xs text-gray-400 hover:text-gray-600">Manage</a>
+                        </div>
+                    </div>
+                    @endif
                     <a href="{{ route('settings.index') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><i class="fa fa-gear w-4 text-gray-400"></i>Settings</a>
                     <a href="{{ route('marketing.help') }}" target="_blank" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><i class="fa fa-circle-question w-4 text-gray-400"></i>Help &amp; Docs</a>
                     <a href="https://prabhassaas.in" target="_blank" rel="noopener" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><i class="fa fa-house w-4 text-gray-400"></i>Prabhas SaaS Home<i class="fa fa-arrow-up-right-from-square ml-auto text-[10px] text-gray-300"></i></a>

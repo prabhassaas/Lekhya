@@ -104,6 +104,7 @@ class LoginController extends Controller
             ]);
 
             $user->assignRole('owner');
+            $user->companies()->syncWithoutDetaching([$tenant->id => ['role' => 'owner']]);
 
             // Seed chart of accounts
             app(\App\Services\Accounting\ChartOfAccountsSeeder::class)->seed($tenant->id);

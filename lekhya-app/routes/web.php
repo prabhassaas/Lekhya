@@ -66,6 +66,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Multi-company: list, switch, create
+    Route::get('companies', [\App\Http\Controllers\CompanyController::class, 'index'])->name('companies.index');
+    Route::get('companies/create', [\App\Http\Controllers\CompanyController::class, 'create'])->name('companies.create');
+    Route::post('companies', [\App\Http\Controllers\CompanyController::class, 'store'])->name('companies.store');
+    Route::post('companies/{company}/switch', [\App\Http\Controllers\CompanyController::class, 'switchTo'])->name('companies.switch');
+
     // Global search
     Route::get('/search', [SearchController::class, 'index'])->name('search');
     Route::get('/search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:60,1')->name('search.suggest');
