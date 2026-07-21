@@ -93,6 +93,9 @@
             <div class="pt-3 pb-1">
                 <p class="px-2 text-xs font-semibold text-navy-300 uppercase tracking-wider">Reports</p>
             </div>
+            <a href="{{ route('accounting.reports.index') }}" class="nav-link @active('accounting.reports.index')">
+                <i class="fa fa-folder-open w-5"></i> <span>All Reports</span>
+            </a>
             <a href="{{ route('accounting.reports.pl') }}" class="nav-link">
                 <i class="fa fa-chart-line w-5"></i> <span>Profit & Loss</span>
             </a>

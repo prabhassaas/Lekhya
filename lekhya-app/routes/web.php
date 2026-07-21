@@ -117,6 +117,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('payments/bank-file/{bank}', [PaymentController::class, 'exportBank'])->name('payments.bankfile.download');
         Route::resource('journals', JournalController::class);
         Route::post('journals/{journal}/reverse', [JournalController::class, 'reverse'])->name('journals.reverse');
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/day-book', [ReportController::class, 'dayBook'])->name('reports.daybook');
+        Route::get('reports/sales-register', [ReportController::class, 'salesRegister'])->name('reports.sales');
+        Route::get('reports/purchase-register', [ReportController::class, 'purchaseRegister'])->name('reports.purchases');
+        Route::get('reports/gst-summary', [ReportController::class, 'gstSummary'])->name('reports.gst');
+        Route::get('reports/party-statement', [ReportController::class, 'partyStatement'])->name('reports.party');
         Route::get('reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.pl');
         Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.bs');
         Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.tb');
