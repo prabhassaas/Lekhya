@@ -8,9 +8,7 @@
         <div><label class="block text-xs text-gray-500 mb-1">From</label><input type="date" name="from" value="{{ $from }}" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"></div>
         <div><label class="block text-xs text-gray-500 mb-1">To</label><input type="date" name="to" value="{{ $to }}" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"></div>
         <button class="px-4 py-1.5 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">Filter</button>
-        <a href="{{ route('accounting.reports.pdf', 'profit-loss') }}?from={{ $from }}&to={{ $to }}" class="ml-auto px-4 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
-            <i class="fa fa-file-pdf mr-1.5"></i>Export PDF
-        </a>
+        <div class="ml-auto"><x-report-share type="profit-loss" :filters="['from' => $from, 'to' => $to]" /></div>
     </form>
 
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">

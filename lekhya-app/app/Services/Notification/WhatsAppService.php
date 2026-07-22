@@ -68,6 +68,12 @@ class WhatsAppService
         ]);
     }
 
+    /** Notify a customer/vendor that a statement/report is ready (PDF follows by email). */
+    public function sendReportReady(string $phone, string $companyName, string $reportName): bool
+    {
+        return $this->sendTemplate($phone, 'report_ready', [$companyName, $reportName]);
+    }
+
     private function sendTemplate(string $to, string $templateName, array $params): bool
     {
         $phone = $this->formatPhone($to);

@@ -147,6 +147,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar');
         Route::get('reports/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap');
         Route::get('reports/{type}/pdf', [ReportController::class, 'exportPdf'])->name('reports.pdf');
+        Route::post('reports/{type}/send', [ReportController::class, 'sendReport'])->name('reports.send');
         Route::get('tally-import', [TallyImportController::class, 'index'])->name('tally.index');
         Route::post('tally-import/upload', [TallyImportController::class, 'upload'])->name('tally.upload');
         Route::get('tally-import/{import}/preview', [TallyImportController::class, 'preview'])->name('tally.preview');

@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Models\{Account, Invoice, Journal, Party, Payment};
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
@@ -178,23 +179,90 @@ class ReportController extends Controller {
         return view('accounting.reports.ap-aging', compact('invoices'));
     }
 
-    public function exportPdf(string $type, Request $request) {
-        $allowed = ['profit-loss', 'balance-sheet', 'trial-balance', 'ar-aging', 'ap-aging'];
-        abort_unless(in_array($type, $allowed, true), 404);
-
-        $data = match($type) {
-            'profit-loss'   => $this->profitLoss($request)->getData(),
-            'balance-sheet' => $this->balanceSheet($request)->getData(),
-            'trial-balance' => $this->trialBalance($request)->getData(),
-            'ar-aging'      => $this->arAging($request)->getData(),
-            'ap-aging'      => $this->apAging($request)->getData(),
+    /** type → [data view-model, pdf blade view, human title]. */
+    private function pdfSpec(string $type, Request $request): array {
+        return match($type) {
+            'profit-loss'       => [$this->profitLoss($request)->getData(),       'profit-loss',     'Profit & Loss'],
+            'balance-sheet'     => [$this->balanceSheet($request)->getData(),      'balance-sheet',   'Balance Sheet'],
+            'trial-balance'     => [$this->trialBalance($request)->getData(),      'trial-balance',   'Trial Balance'],
+            'ar-aging'          => [$this->arAging($request)->getData(),           'ar-aging',        'AR Ageing'],
+            'ap-aging'          => [$this->apAging($request)->getData(),           'ap-aging',        'AP Ageing'],
+            'day-book'          => [$this->dayBook($request)->getData(),           'day-book',        'Day Book'],
+            'sales-register'    => [$this->salesRegister($request)->getData(),     'register',        'Sales Register'],
+            'purchase-register' => [$this->purchaseRegister($request)->getData(),  'register',        'Purchase Register'],
+            'gst-summary'       => [$this->gstSummary($request)->getData(),        'gst-summary',     'GST Summary'],
+            'party-statement'   => [$this->partyStatement($request)->getData(),    'party-statement', 'Party Statement'],
+            default             => abort(404),
         };
+    }
+
+    /** Build the PDF for a report type. Returns [Pdf, filename, title]. */
+    private function buildPdf(string $type, Request $request): array {
+        [$data, $view, $title] = $this->pdfSpec($type, $request);
         $data['tenant']      = auth()->user()->tenant;
         $data['generatedAt'] = now();
         $data['reportType']  = $type;
 
-        $pdf = Pdf::loadView("accounting.reports.pdf.{$type}", $data)->setPaper('A4');
-        return $pdf->download("lekhya-{$type}-" . date('Y-m-d') . '.pdf');
+        $pdf = Pdf::loadView("accounting.reports.pdf.{$view}", $data)->setPaper('A4');
+        return [$pdf, "lekhya-{$type}-" . date('Y-m-d') . '.pdf', $title];
+    }
+
+    public function exportPdf(string $type, Request $request) {
+        [$pdf, $filename] = $this->buildPdf($type, $request);
+        return $pdf->download($filename);
+    }
+
+    /** Email a report as a PDF, or WhatsApp a "ready" notice, to a customer/vendor. */
+    public function sendReport(string $type, Request $request) {
+        $user = auth()->user();
+        // Only roles above read-only may send documents outside the workspace.
+        abort_unless($user->hasAnyRole(['owner', 'accountant', 'ca']), 403, 'You do not have permission to send reports externally.');
+
+        // NB: recipient is 'recipient', not 'to' — 'to' is the report's end-date filter.
+        $data = $request->validate([
+            'channel'   => 'required|in:email,whatsapp',
+            'recipient' => 'required_if:channel,email|nullable|email',
+            'phone'     => 'required_if:channel,whatsapp|nullable|string|max:20',
+            'message'   => 'nullable|string|max:500',
+        ]);
+
+        [$pdf, $filename, $title] = $this->buildPdf($type, $request);
+        $company = $user->tenant->name ?? config('app.name');
+
+        if ($data['channel'] === 'email') {
+            try {
+                Mail::to($data['recipient'])->send(new \App\Mail\ReportMail(
+                    title: $title,
+                    company: $company,
+                    period: $this->periodLabel($request),
+                    note: $data['message'] ?? null,
+                    pdf: $pdf->output(),
+                    filename: $filename,
+                ));
+            } catch (\Throwable $e) {
+                return back()->with('error', 'Could not send the email — ' . $e->getMessage());
+            }
+            return back()->with('success', "“{$title}” emailed to {$data['recipient']}.");
+        }
+
+        // WhatsApp: PDFs need a hosted media URL + a live API, so we send an
+        // approved "ready" template; the document itself goes by email.
+        $ok = app(\App\Services\Notification\WhatsAppService::class)->sendReportReady($data['phone'], $company, $title);
+        return back()->with($ok ? 'success' : 'error',
+            $ok ? "WhatsApp notification sent for “{$title}”." : 'WhatsApp isn’t configured yet — send by email instead.');
+    }
+
+    /** Human-readable period for the current report filters. */
+    private function periodLabel(Request $request): string {
+        if ($request->filled('as_of')) {
+            return 'As of ' . Carbon::parse($request->get('as_of'))->format('d M Y');
+        }
+        $from = $request->get('from');
+        $to   = $request->get('to');
+        if ($from || $to) {
+            return Carbon::parse($from ?: date('Y-04-01'))->format('d M Y') . ' — ' . Carbon::parse($to ?: date('Y-m-d'))->format('d M Y');
+        }
+        return '';
     }
 
     private function getAccountBalances(int $tenantId, string $type, ?string $from, ?string $to, ?string $subType = null): array {

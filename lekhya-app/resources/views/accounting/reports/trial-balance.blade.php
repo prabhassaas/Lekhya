@@ -11,9 +11,7 @@
     <form method="GET" class="flex items-end gap-3">
         <div><label class="block text-xs text-gray-500 mb-1">As of</label><input type="date" name="as_of" value="{{ $asOf }}" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"></div>
         <button class="px-4 py-1.5 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">Filter</button>
-        <a href="{{ route('accounting.reports.pdf', 'trial-balance') }}?as_of={{ $asOf }}" class="ml-auto px-4 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
-            <i class="fa fa-file-pdf mr-1.5"></i>Export PDF
-        </a>
+        <div class="ml-auto"><x-report-share type="trial-balance" :filters="['as_of' => $asOf]" /></div>
     </form>
 
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">

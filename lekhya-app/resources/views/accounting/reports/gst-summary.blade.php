@@ -11,6 +11,10 @@
         <button class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">Apply</button>
     </form>
 
+    <div class="flex justify-end">
+        <x-report-share type="gst-summary" :filters="['from' => $from, 'to' => $to]" />
+    </div>
+
     <div class="grid md:grid-cols-2 gap-5">
         {{-- Output tax --}}
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">

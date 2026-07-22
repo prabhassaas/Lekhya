@@ -22,6 +22,11 @@
 
     @if($party)
     @php $closing = $rows->last()['balance'] ?? 0; @endphp
+    <div class="flex justify-end">
+        <x-report-share type="party-statement"
+            :filters="['party_id' => $party->id, 'from' => $from, 'to' => $to]"
+            :email="$party->email" :phone="$party->phone" />
+    </div>
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
             <div>

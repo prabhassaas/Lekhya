@@ -10,9 +10,7 @@
 @endphp
 <div class="py-4 space-y-6">
     <div class="flex justify-end">
-        <a href="{{ route('accounting.reports.pdf', 'ap-aging') }}" class="px-4 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
-            <i class="fa fa-file-pdf mr-1.5"></i>Export PDF
-        </a>
+        <x-report-share type="ap-aging" />
     </div>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">

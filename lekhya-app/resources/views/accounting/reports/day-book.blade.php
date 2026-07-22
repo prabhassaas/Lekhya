@@ -12,6 +12,10 @@
         <span class="ml-auto text-sm text-gray-500">Total turnover: <strong class="text-gray-900">₹{{ number_format($totalDebit, 2) }}</strong></span>
     </form>
 
+    <div class="flex justify-end">
+        <x-report-share type="day-book" :filters="['from' => $from, 'to' => $to]" />
+    </div>
+
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
         <table class="w-full text-sm">
