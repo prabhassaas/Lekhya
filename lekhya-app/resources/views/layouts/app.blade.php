@@ -284,6 +284,49 @@
                     ->selectRaw('type, count(*) as c')->groupBy('type')->pluck('c', 'type');
                 $__typeLabels = ['extraction' => 'Invoice scans', 'assistant' => 'AI questions', 'nl_query' => 'NL queries', 'account_coding' => 'Auto-coding', 'anomaly' => 'Anomaly checks'];
             @endphp
+
+            {{-- Notifications bell --}}
+            @php
+                try {
+                    $__notifs = auth()->user()->notifications()->latest()->limit(8)->get();
+                    $__unread = auth()->user()->unreadNotifications()->count();
+                } catch (\Throwable $e) { $__notifs = collect(); $__unread = 0; }
+            @endphp
+            <div class="relative shrink-0" x-data="{ notifOpen: false }" @click.outside="notifOpen = false" @keydown.escape="notifOpen = false">
+                <button type="button" @click="notifOpen = !notifOpen" title="Notifications" class="relative flex items-center text-gray-600 hover:text-navy-700 p-1.5">
+                    <i class="fa fa-bell text-lg"></i>
+                    @if($__unread > 0)
+                    <span class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{{ $__unread > 9 ? '9+' : $__unread }}</span>
+                    @endif
+                </button>
+                <div x-show="notifOpen" x-transition x-cloak class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                    <div class="px-4 py-3 bg-navy-600 text-white flex items-center justify-between">
+                        <p class="text-sm font-semibold">Notifications</p>
+                        @if($__unread > 0)
+                        <form method="POST" action="{{ route('notifications.read_all') }}">@csrf<button class="text-[11px] text-navy-200 hover:text-white">Mark all read</button></form>
+                        @endif
+                    </div>
+                    <div class="max-h-96 overflow-y-auto divide-y divide-gray-50">
+                        @forelse($__notifs as $__n)
+                        <a href="{{ route('notifications.open', $__n->id) }}" class="flex gap-3 px-4 py-3 hover:bg-gray-50 {{ $__n->read_at ? '' : 'bg-blue-50/40' }}">
+                            <div class="w-8 h-8 rounded-lg bg-{{ $__n->data['color'] ?? 'navy' }}-50 text-{{ $__n->data['color'] ?? 'navy' }}-600 flex items-center justify-center shrink-0"><i class="fa {{ $__n->data['icon'] ?? 'fa-bell' }} text-sm"></i></div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm text-gray-800 {{ $__n->read_at ? '' : 'font-semibold' }}">{{ $__n->data['title'] ?? 'Notification' }}</p>
+                                @if(!empty($__n->data['body']))<p class="text-xs text-gray-500 truncate">{{ $__n->data['body'] }}</p>@endif
+                                <p class="text-[11px] text-gray-400 mt-0.5">{{ $__n->created_at->diffForHumans() }}</p>
+                            </div>
+                            @unless($__n->read_at)<span class="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-1.5"></span>@endunless
+                        </a>
+                        @empty
+                        <div class="px-4 py-8 text-center text-gray-400 text-sm"><i class="fa fa-bell-slash text-xl mb-2 block text-gray-300"></i>No notifications yet.</div>
+                        @endforelse
+                    </div>
+                    <div class="px-3 py-2.5 border-t border-gray-100 text-center">
+                        <a href="{{ route('notifications.index') }}" class="text-sm text-navy-600 font-medium hover:underline">See all &rarr;</a>
+                    </div>
+                </div>
+            </div>
+
             <div class="relative hidden sm:block shrink-0" x-data="{ creditsOpen: false }" @click.outside="creditsOpen = false" @keydown.escape="creditsOpen = false">
                 <button type="button" @click="creditsOpen = !creditsOpen" title="AI credits"
                         class="flex items-center gap-1.5 text-gray-600 hover:text-navy-700">

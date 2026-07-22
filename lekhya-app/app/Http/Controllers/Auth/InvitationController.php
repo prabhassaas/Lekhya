@@ -39,6 +39,17 @@ class InvitationController extends Controller
             'email_verified_at' => now(),
         ])->save();
 
+        if ($user->invited_by) {
+            app(\App\Services\Notification\Notifier::class)->toUser(
+                User::find($user->invited_by),
+                "{$user->name} joined the team",
+                "{$user->name} accepted your invitation and is now active.",
+                route('settings.users'),
+                'fa-user-check',
+                'green',
+            );
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
 

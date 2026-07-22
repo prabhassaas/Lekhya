@@ -171,6 +171,17 @@ class RecurringInvoiceService
             }
         }
 
+        if ($invoice) {
+            app(\App\Services\Notification\Notifier::class)->toTenant(
+                $schedule->tenant_id,
+                'Recurring invoice raised',
+                "{$invoice->invoice_number} — {$schedule->title}",
+                route('accounting.invoices.show', $invoice),
+                'fa-repeat',
+                'indigo',
+            );
+        }
+
         return $invoice;
     }
 

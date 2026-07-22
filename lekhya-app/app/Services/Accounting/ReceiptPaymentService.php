@@ -94,7 +94,7 @@ class ReceiptPaymentService
             $voucher = 'payment';
         }
 
-        return DB::transaction(function () use ($data, $tenantId, $type, $fy, $lines, $voucher, $allocations, $invoices, $gross, $tds, $ledger, $partyName, $ref) {
+        $payment = DB::transaction(function () use ($data, $tenantId, $type, $fy, $lines, $voucher, $allocations, $invoices, $gross, $tds, $ledger, $partyName, $ref) {
             $journal = $this->engine->post([
                 'tenant_id'      => $tenantId,
                 'fiscal_year_id' => $fy->id,
@@ -146,5 +146,18 @@ class ReceiptPaymentService
 
             return $payment;
         });
+
+        // Tell the rest of the team money moved (never blocks the settlement).
+        app(\App\Services\Notification\Notifier::class)->toTenant(
+            $tenantId,
+            $type === 'receipt' ? 'Receipt recorded' : 'Payment recorded',
+            '₹' . number_format($gross, 2) . ($type === 'receipt' ? ' received from ' : ' paid to ') . $partyName,
+            route('accounting.payments.show', $payment),
+            $type === 'receipt' ? 'fa-arrow-down' : 'fa-arrow-up',
+            $type === 'receipt' ? 'green' : 'orange',
+            $data['created_by'] ?? null,
+        );
+
+        return $payment;
     }
 }
