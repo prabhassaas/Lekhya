@@ -71,6 +71,9 @@
             <a href="{{ route('accounting.invoices.index') }}?type=purchase" class="nav-link">
                 <i class="fa fa-cart-shopping w-5"></i> <span>Purchase Invoices</span>
             </a>
+            <a href="{{ route('accounting.recurring.index') }}" class="nav-link @active('accounting.recurring*')">
+                <i class="fa fa-repeat w-5"></i> <span>Recurring Invoices</span>
+            </a>
             <a href="{{ route('accounting.parties.index') }}" class="nav-link @active('accounting.parties*')">
                 <i class="fa fa-address-book w-5"></i> <span>Vendors &amp; Customers</span>
             </a>

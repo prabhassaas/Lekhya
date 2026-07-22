@@ -22,7 +22,7 @@ class Invoice extends Model
         'price_includes_gst', 'tds_rate', 'tds_amount',
         'source_file_path', 'source_file_name', 'extra',
         'irn', 'ack_number', 'ack_date', 'signed_qr', 'eway_bill_number',
-        'notes', 'terms', 'journal_id', 'created_by', 'posted_at',
+        'notes', 'terms', 'journal_id', 'created_by', 'posted_at', 'converted_from_id', 'recurring_invoice_id',
     ];
 
     protected $casts = [
@@ -54,9 +54,18 @@ class Invoice extends Model
     }
 
     public const DOCUMENT_TYPES = [
-        'tax_invoice'      => 'Tax Invoice',
+        'quotation'        => 'Quotation',
+        'sales_order'      => 'Sales Order',
         'proforma'         => 'Proforma Invoice',
         'delivery_challan' => 'Delivery Challan',
+        'tax_invoice'      => 'Tax Invoice',
+    ];
+
+    /** What a document of this type can be converted into next, in sequence. */
+    public const CONVERSIONS = [
+        'quotation'   => ['sales_order' => 'Sales Order', 'tax_invoice' => 'Tax Invoice'],
+        'sales_order' => ['tax_invoice' => 'Tax Invoice'],
+        'proforma'    => ['tax_invoice' => 'Tax Invoice'],
     ];
 
     public function documentLabel(): string
@@ -66,6 +75,16 @@ class Invoice extends Model
         }
         return self::DOCUMENT_TYPES[$this->document_type] ?? 'Tax Invoice';
     }
+
+    /** Non-ledger sales documents (quote / order / proforma / challan). */
+    public function isSalesDocument(): bool
+    {
+        return $this->type === 'sales' && ($this->document_type ?? 'tax_invoice') !== 'tax_invoice';
+    }
+
+    public function convertedFrom(): BelongsTo { return $this->belongsTo(Invoice::class, 'converted_from_id'); }
+    public function convertedTo(): HasMany { return $this->hasMany(Invoice::class, 'converted_from_id'); }
+    public function recurringSchedule(): BelongsTo { return $this->belongsTo(RecurringInvoice::class, 'recurring_invoice_id'); }
 
     /** Only a tax invoice / purchase bill creates ledger postings & GST liability. */
     public function isAccountingDocument(): bool
@@ -86,5 +105,31 @@ class Invoice extends Model
     public function scopeForTenant($query, int $tenantId)
     {
         return $query->where('tenant_id', $tenantId);
+    }
+
+    /**
+     * Next document number for a tenant, per type/document-type series
+     * (SI/PI/QT/SO/PRO/DC). Derives from the highest existing sequence —
+     * including soft-deleted rows — so a delete never reuses a number.
+     */
+    public static function nextNumberFor(int $tenantId, string $type, string $documentType = 'tax_invoice'): string
+    {
+        $prefix = match (true) {
+            $type === 'purchase'                 => 'PI',
+            $documentType === 'quotation'        => 'QT',
+            $documentType === 'sales_order'      => 'SO',
+            $documentType === 'proforma'         => 'PRO',
+            $documentType === 'delivery_challan' => 'DC',
+            default                              => 'SI',
+        };
+        $year = date('y');
+        $last = static::withTrashed()
+            ->where('tenant_id', $tenantId)->where('type', $type)
+            ->where('invoice_number', 'like', "{$prefix}/{$year}/%")
+            ->pluck('invoice_number')
+            ->map(fn ($n) => (int) substr((string) $n, strrpos((string) $n, '/') + 1))
+            ->max() ?? 0;
+
+        return "{$prefix}/{$year}/" . str_pad($last + 1, 4, '0', STR_PAD_LEFT);
     }
 }

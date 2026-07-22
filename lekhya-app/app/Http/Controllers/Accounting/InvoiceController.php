@@ -19,6 +19,9 @@ class InvoiceController extends Controller {
         $view = $request->get('view') === 'cancelled' ? 'cancelled' : null;
         $type = $request->get('type', 'sales');
 
+        // Sales document-type sub-filter (Quotation / Sales Order / Invoice …).
+        $doc = ($type === 'sales' && in_array($request->get('doc'), array_keys(Invoice::DOCUMENT_TYPES), true)) ? $request->get('doc') : null;
+
         $query = Invoice::where('tenant_id', $tenantId)->with('party');
         if ($view === 'cancelled') {
             // Cancelled / reversed bills across both sales & purchase.
@@ -26,7 +29,16 @@ class InvoiceController extends Controller {
         } else {
             // Live docs only — cancelled ones move to their own tab.
             $query->where('type', $type)->where('status', '!=', 'cancelled');
+            if ($doc) {
+                $query->where('document_type', $doc);
+            }
         }
+
+        // Counts per sales document type for the sub-filter chips.
+        $docCounts = $type === 'sales' && ! $view
+            ? Invoice::where('tenant_id', $tenantId)->where('type', 'sales')->where('status', '!=', 'cancelled')
+                ->selectRaw('document_type, count(*) as c')->groupBy('document_type')->pluck('c', 'document_type')
+            : collect();
 
         // Clickable column sorting (?sort=&dir=), else natural default order.
         $this->applySort($query, $request, [
@@ -43,7 +55,7 @@ class InvoiceController extends Controller {
         $cancelledCount = Invoice::where('tenant_id', $tenantId)->where('status', 'cancelled')->count();
         $invoices = $query->paginate(20)->withQueryString();
 
-        return view('accounting.invoices.index', compact('invoices', 'type', 'view', 'cancelledCount'));
+        return view('accounting.invoices.index', compact('invoices', 'type', 'view', 'cancelledCount', 'doc', 'docCounts'));
     }
 
     public function create(Request $request) {
@@ -204,6 +216,43 @@ class InvoiceController extends Controller {
         return \Illuminate\Support\Facades\Storage::response($path, $invoice->source_file_name ?: 'invoice-' . $invoice->invoice_number);
     }
 
+    /** Convert a sales document to the next stage (Quote → Order → Tax Invoice). */
+    public function convert(Invoice $invoice, Request $request) {
+        abort_if($invoice->tenant_id !== auth()->user()->tenant_id, 403);
+        $target = $request->validate(['document_type' => 'required|string'])['document_type'];
+        $from   = $invoice->document_type ?? 'tax_invoice';
+        abort_unless(isset(Invoice::CONVERSIONS[$from][$target]), 422, 'That conversion is not allowed.');
+
+        $new = DB::transaction(function () use ($invoice, $target) {
+            $tenantId = $invoice->tenant_id;
+            $copy = $invoice->replicate([
+                'invoice_number', 'status', 'journal_id', 'posted_at', 'paid_amount', 'balance_amount',
+                'irn', 'ack_number', 'ack_date', 'signed_qr', 'eway_bill_number',
+            ]);
+            $copy->document_type     = $target;
+            $copy->invoice_number    = $this->nextNumber($tenantId, 'sales', $target);
+            $copy->status            = 'draft';
+            $copy->converted_from_id = $invoice->id;
+            $copy->invoice_date      = now()->toDateString();
+            $copy->paid_amount       = 0;
+            $copy->balance_amount    = $target === 'tax_invoice' ? $invoice->total_amount : 0;
+            $copy->journal_id        = null;
+            $copy->posted_at         = null;
+            $copy->created_by        = auth()->id();
+            $copy->save();
+
+            foreach ($invoice->lines as $line) {
+                $lc = $line->replicate(['invoice_id']);
+                $lc->invoice_id = $copy->id;
+                $lc->save();
+            }
+            return $copy;
+        });
+
+        return redirect()->route('accounting.invoices.show', $new)
+            ->with('success', "{$invoice->documentLabel()} {$invoice->invoice_number} converted to {$new->documentLabel()} {$new->invoice_number}.");
+    }
+
     public function edit(Invoice $invoice) {
         $this->authorize('view', $invoice);
         if ($invoice->isLocked()) return redirect()->route('accounting.invoices.show', $invoice)->with('error', 'A posted invoice is locked — reverse it with a credit/debit note to change it.');
@@ -276,7 +325,7 @@ class InvoiceController extends Controller {
     private function rules(): array {
         return [
             'type' => 'required|in:sales,purchase',
-            'document_type' => 'nullable|in:tax_invoice,proforma,delivery_challan',
+            'document_type' => 'nullable|in:tax_invoice,proforma,delivery_challan,quotation,sales_order',
             'party_id' => 'required|exists:parties,id',
             'party_branch_id' => 'nullable|integer|exists:party_branches,id',
             'reference_number' => 'nullable|string|max:100',
@@ -515,21 +564,6 @@ class InvoiceController extends Controller {
     }
 
     private function nextNumber(int $tenantId, string $type, string $documentType = 'tax_invoice'): string {
-        $prefix = match (true) {
-            $type === 'purchase'                => 'PI',
-            $documentType === 'proforma'        => 'PRO',
-            $documentType === 'delivery_challan' => 'DC',
-            default                             => 'SI',
-        };
-        $year = date('y');
-        // Include soft-deleted rows and derive from the highest existing sequence —
-        // count() alone reuses numbers after a delete and hits the unique constraint.
-        $last = Invoice::withTrashed()
-            ->where('tenant_id', $tenantId)->where('type', $type)
-            ->where('invoice_number', 'like', "{$prefix}/{$year}/%")
-            ->pluck('invoice_number')
-            ->map(fn($n) => (int) substr((string) $n, strrpos((string) $n, '/') + 1))
-            ->max() ?? 0;
-        return "{$prefix}/{$year}/" . str_pad($last + 1, 4, '0', STR_PAD_LEFT);
+        return Invoice::nextNumberFor($tenantId, $type, $documentType);
     }
 }

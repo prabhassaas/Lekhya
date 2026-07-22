@@ -3,7 +3,7 @@
 @section('page-title', $invoice->invoice_number)
 
 @section('content')
-<div class="py-4 space-y-6 max-w-4xl">
+<div class="py-4 space-y-6 max-w-4xl" x-data="{ recurOpen: false }">
     <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
             <span class="text-xs px-2.5 py-1 rounded-full font-medium capitalize
@@ -46,6 +46,23 @@
                 <button class="px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50">Cancel</button>
             </form>
             @endif
+            {{-- Sales-cycle conversion: Quote → Order → Tax Invoice --}}
+            @php $__conversions = ($invoice->status !== 'cancelled' && $invoice->type === 'sales') ? (\App\Models\Invoice::CONVERSIONS[$invoice->document_type ?? 'tax_invoice'] ?? []) : []; @endphp
+            @foreach($__conversions as $__target => $__label)
+            <form method="POST" action="{{ route('accounting.invoices.convert', $invoice) }}">
+                @csrf
+                <input type="hidden" name="document_type" value="{{ $__target }}">
+                <button class="px-4 py-2 text-sm font-medium rounded-lg {{ $__target === 'tax_invoice' ? 'bg-navy-600 hover:bg-navy-700 text-white' : 'border border-navy-600 text-navy-700 hover:bg-navy-50' }}">
+                    <i class="fa fa-arrow-right-arrow-left mr-1.5"></i>Convert to {{ $__label }}
+                </button>
+            </form>
+            @endforeach
+            {{-- Recurring: snapshot this invoice into a schedule that raises drafts on a cadence --}}
+            @if($invoice->type === 'sales' && $invoice->status !== 'cancelled')
+            <button type="button" @click="recurOpen = true" class="px-4 py-2 border border-indigo-300 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-50">
+                <i class="fa fa-repeat mr-1.5"></i>Set up recurring
+            </button>
+            @endif
             @if(in_array($invoice->status, ['posted', 'partially_paid']) && $invoice->balance_amount > 0)
             <a href="{{ route('accounting.payments.record', ['type' => $invoice->type === 'sales' ? 'receipt' : 'payment', 'party_id' => $invoice->party_id]) }}"
                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg">
@@ -69,6 +86,87 @@
             @endif
         </div>
     </div>
+
+    {{-- Set-up-recurring modal --}}
+    @if($invoice->type === 'sales' && $invoice->status !== 'cancelled')
+    <div x-show="recurOpen" x-cloak class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" @click.self="recurOpen = false">
+        <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" x-data="{ ends: 'never' }">
+            <form method="POST" action="{{ route('accounting.recurring.store') }}">
+                @csrf
+                <input type="hidden" name="invoice_id" value="{{ $invoice->id }}">
+                <div class="flex items-center justify-between px-6 pt-6 pb-1">
+                    <h3 class="font-semibold text-gray-900"><i class="fa fa-repeat text-indigo-500 mr-1.5"></i>Set up recurring</h3>
+                    <button type="button" @click="recurOpen = false" class="text-gray-400 hover:text-gray-600"><i class="fa fa-xmark"></i></button>
+                </div>
+                <p class="px-6 text-sm text-gray-500 mb-4">A copy of this {{ strtolower($invoice->documentLabel()) }}’s lines &amp; totals is saved as a schedule. Each period a fresh <span class="font-medium">draft</span> invoice is raised for you to review.</p>
+
+                <div class="px-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Schedule name</label>
+                        <input type="text" name="title" value="{{ ($invoice->party->name ?? 'Recurring') . ' — ' . $invoice->documentLabel() }}" maxlength="150"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-navy-500 focus:border-navy-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                            <select name="frequency" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                @foreach(\App\Models\RecurringInvoice::FREQUENCIES as $__fv => $__fl)
+                                <option value="{{ $__fv }}" @selected($__fv === 'monthly')>{{ $__fl }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" name="interval_count" value="1" min="1" max="60" class="w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                <span class="text-sm text-gray-400">period(s)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">First invoice on</label>
+                        <input type="date" name="start_date" value="{{ now()->toDateString() }}" min="{{ now()->toDateString() }}"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Ends</label>
+                        <div class="flex gap-2 text-sm">
+                            <label class="flex items-center gap-1.5"><input type="radio" x-model="ends" value="never" checked> Never</label>
+                            <label class="flex items-center gap-1.5"><input type="radio" x-model="ends" value="date"> On date</label>
+                            <label class="flex items-center gap-1.5"><input type="radio" x-model="ends" value="count"> After N</label>
+                        </div>
+                        <div class="mt-2">
+                            <input x-show="ends === 'date'" x-cloak type="date" name="end_date" min="{{ now()->toDateString() }}"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <div x-show="ends === 'count'" x-cloak class="flex items-center gap-2">
+                                <input type="number" name="occurrences_limit" min="1" max="600" placeholder="12"
+                                       class="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                <span class="text-sm text-gray-400">invoices, then stop</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if($invoice->isAccountingDocument())
+                    <label class="flex items-start gap-2 bg-gray-50 rounded-lg p-3 cursor-pointer">
+                        <input type="checkbox" name="auto_post" value="1" class="mt-0.5">
+                        <span class="text-sm text-gray-700">Post to the ledger automatically
+                            <span class="block text-xs text-gray-400">Off by default — raise as a draft so you can review before posting.</span>
+                        </span>
+                    </label>
+                    @endif
+                </div>
+
+                <div class="flex justify-end gap-2 px-6 py-4 mt-2 border-t border-gray-100">
+                    <button type="button" @click="recurOpen = false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg">Create schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 
     @if($invoice->journal)
     {{-- Double-entry journal posted for this bill — shown above the invoice for clarity. --}}

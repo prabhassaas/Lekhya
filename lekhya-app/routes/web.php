@@ -84,7 +84,17 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post');
         Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
         Route::post('invoices/{invoice}/reverse', [InvoiceController::class, 'reverse'])->name('invoices.reverse');
+        Route::post('invoices/{invoice}/convert', [InvoiceController::class, 'convert'])->name('invoices.convert');
         Route::get('invoices/{invoice}/original', [InvoiceController::class, 'original'])->name('invoices.original');
+
+        // Recurring invoices (schedules that raise draft invoices on a cadence).
+        Route::get('recurring', [\App\Http\Controllers\Accounting\RecurringInvoiceController::class, 'index'])->name('recurring.index');
+        Route::post('recurring', [\App\Http\Controllers\Accounting\RecurringInvoiceController::class, 'store'])->name('recurring.store');
+        Route::get('recurring/{recurring}', [\App\Http\Controllers\Accounting\RecurringInvoiceController::class, 'show'])->name('recurring.show');
+        Route::post('recurring/{recurring}/pause', [\App\Http\Controllers\Accounting\RecurringInvoiceController::class, 'pause'])->name('recurring.pause');
+        Route::post('recurring/{recurring}/resume', [\App\Http\Controllers\Accounting\RecurringInvoiceController::class, 'resume'])->name('recurring.resume');
+        Route::post('recurring/{recurring}/run', [\App\Http\Controllers\Accounting\RecurringInvoiceController::class, 'runNow'])->name('recurring.run');
+        Route::delete('recurring/{recurring}', [\App\Http\Controllers\Accounting\RecurringInvoiceController::class, 'destroy'])->name('recurring.destroy');
 
         // Inventory / products (HSN auto-mapped)
         Route::get('hsn-lookup', [ProductController::class, 'hsnLookup'])->name('hsn.lookup');

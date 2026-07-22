@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('connector:sync')->everyFiveMinutes();
+Schedule::command('invoices:generate-recurring')->dailyAt('06:00');

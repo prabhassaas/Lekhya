@@ -120,7 +120,10 @@
             <input type="hidden" name="price_includes_gst" :value="priceIncl ? '1' : '0'">
 
             @if(($type ?? 'sales') === 'sales')
-            @php $selectedDoc = old('document_type', ($editing ?? false) ? $invoice->document_type : 'tax_invoice'); @endphp
+            @php
+                $__reqDoc = in_array(request('doc'), array_keys(\App\Models\Invoice::DOCUMENT_TYPES), true) ? request('doc') : 'tax_invoice';
+                $selectedDoc = old('document_type', ($editing ?? false) ? $invoice->document_type : $__reqDoc);
+            @endphp
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Document type</label>
                 <div class="inline-flex flex-wrap rounded-lg border border-gray-200 p-0.5 bg-gray-50">
@@ -131,7 +134,7 @@
                     </label>
                     @endforeach
                 </div>
-                <p class="text-xs text-gray-400 mt-1.5"><i class="fa fa-circle-info mr-1"></i>Only a <strong>Tax Invoice</strong> posts to the ledger and carries GST. Proforma &amp; Delivery Challan are documents only.</p>
+                <p class="text-xs text-gray-400 mt-1.5"><i class="fa fa-circle-info mr-1"></i>Only a <strong>Tax Invoice</strong> posts to the ledger and carries GST. Quotation, Sales Order, Proforma &amp; Delivery Challan are documents only — convert them to a Tax Invoice once confirmed.</p>
             </div>
             @endif
 

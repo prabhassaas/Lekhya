@@ -3,7 +3,7 @@
 @section('page-title', $type === 'sales' ? 'Sales Invoices' : 'Purchase Invoices')
 
 @section('content')
-<div class="py-4 space-y-6" x-data="{ scanOpen: false }">
+<div class="py-4 space-y-6" x-data="{ scanOpen: false, newOpen: false }">
     <div class="flex items-center justify-between">
         <div class="flex gap-2">
             @php $isCancelledView = ($view ?? null) === 'cancelled'; @endphp
@@ -20,11 +20,32 @@
             <button type="button" @click="scanOpen = true" class="px-4 py-2 border border-amber-300 text-amber-700 hover:bg-amber-50 text-sm font-medium rounded-lg">
                 <i class="fa fa-wand-magic-sparkles mr-1.5"></i>Scan Invoice (AI)
             </button>
+            @if($type === 'sales' && !$isCancelledView)
+            <div class="relative" @click.outside="newOpen = false">
+                <button type="button" @click="newOpen = !newOpen" class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">
+                    <i class="fa fa-plus mr-1.5"></i>New <i class="fa fa-chevron-down text-[10px] ml-1"></i>
+                </button>
+                <div x-show="newOpen" x-cloak x-transition class="absolute right-0 mt-2 w-52 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden z-40">
+                    @foreach(\App\Models\Invoice::DOCUMENT_TYPES as $__v => $__l)
+                    <a href="{{ route('accounting.invoices.create', ['type' => 'sales', 'doc' => $__v]) }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">{{ $__l }}</a>
+                    @endforeach
+                </div>
+            </div>
+            @else
             <a href="{{ route('accounting.invoices.create', ['type' => $type]) }}" class="px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white text-sm font-medium rounded-lg">
                 <i class="fa fa-plus mr-1.5"></i>New {{ $type === 'sales' ? 'Sales' : 'Purchase' }} Invoice
             </a>
+            @endif
         </div>
     </div>
+
+    {{-- Sales document-type sub-filter --}}
+    @if($type === 'sales' && !$isCancelledView && ($docCounts ?? collect())->isNotEmpty())
+    @php $__docTabs = ['' => ['label' => 'All documents', 'count' => $docCounts->sum()]];
+        foreach(\App\Models\Invoice::DOCUMENT_TYPES as $__k => $__lbl) { if(($docCounts[$__k] ?? 0) > 0) $__docTabs[$__k] = ['label' => $__lbl, 'count' => $docCounts[$__k]]; }
+    @endphp
+    <x-filter-tabs :tabs="$__docTabs" :active="$doc ?? ''" param="doc" />
+    @endif
 
     {{-- Scan / camera modal — reads a PDF or photo of an invoice and drops you on the AI review screen --}}
     <div x-show="scanOpen" x-cloak class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" @click.self="scanOpen = false">
@@ -79,7 +100,15 @@
             <tbody class="divide-y divide-gray-50">
                 @forelse($invoices as $inv)
                 <tr class="hover:bg-gray-50">
-                    <td class="px-5 py-3"><a href="{{ route('accounting.invoices.show', $inv) }}" class="text-navy-600 font-medium hover:underline">{{ $inv->invoice_number }}</a></td>
+                    <td class="px-5 py-3">
+                        <a href="{{ route('accounting.invoices.show', $inv) }}" class="text-navy-600 font-medium hover:underline">{{ $inv->invoice_number }}</a>
+                        @if(($inv->document_type ?? 'tax_invoice') !== 'tax_invoice')
+                        <span class="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-medium align-middle">{{ \App\Models\Invoice::DOCUMENT_TYPES[$inv->document_type] ?? ucfirst(str_replace('_',' ',$inv->document_type)) }}</span>
+                        @endif
+                        @if($inv->converted_from_id)
+                        <span class="ml-1 text-[10px] text-gray-400" title="Converted from another document"><i class="fa fa-arrow-turn-up fa-rotate-90"></i></span>
+                        @endif
+                    </td>
                     <td class="px-5 py-3 text-gray-500 font-mono text-xs">{{ $inv->reference_number ?: '—' }}</td>
                     <td class="px-5 py-3 text-gray-700">{{ $inv->party->name ?? '—' }}</td>
                     <td class="px-5 py-3">
