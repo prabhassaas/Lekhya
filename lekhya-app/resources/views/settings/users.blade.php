@@ -166,7 +166,13 @@ $roleSelectColors = [
 
                 {{-- Status pill --}}
                 <td class="px-3 py-3">
-                    @if($user->is_active)
+                    @if($user->invitationPending())
+                        <span class="inline-flex items-center gap-1 text-xs font-medium
+                                     text-amber-700 bg-amber-50 rounded-full px-2 py-0.5" title="Invitation sent — awaiting sign-up">
+                            <i class="fa fa-envelope text-[10px]"></i>
+                            Invited
+                        </span>
+                    @elseif($user->is_active)
                         <span class="inline-flex items-center gap-1 text-xs font-medium
                                      text-green-700 bg-green-50 rounded-full px-2 py-0.5">
                             <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
@@ -194,6 +200,18 @@ $roleSelectColors = [
                             <i class="fa fa-sliders text-sm"
                                :class="expandedUser === {{ $user->id }} ? 'text-navy-600' : ''"></i>
                         </button>
+
+                        @if($user->invitationPending())
+                            {{-- Resend invitation email --}}
+                            <form method="POST" action="/settings/users/{{ $user->id }}/resend-invite" class="inline">
+                                @csrf
+                                <button type="submit" title="Resend invitation email"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg
+                                               text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                                    <i class="fa fa-paper-plane text-sm"></i>
+                                </button>
+                            </form>
+                        @endif
 
                         @if(!$isSelf)
                             {{-- Deactivate / Reactivate --}}
@@ -464,10 +482,9 @@ $roleSelectColors = [
                                          focus:ring-navy-500 focus:border-transparent resize-none">{{ old('message') }}</textarea>
                     </div>
 
-                    <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-700">
-                        <i class="fa fa-triangle-exclamation mr-1"></i>
-                        A temporary password will be generated and logged. Share it with the invitee
-                        securely until email delivery is configured.
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 text-xs text-blue-700">
+                        <i class="fa fa-envelope mr-1"></i>
+                        We'll email them a secure link to set their own password and join this workspace.
                     </div>
 
                 </div>

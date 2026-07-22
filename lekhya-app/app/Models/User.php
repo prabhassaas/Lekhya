@@ -16,9 +16,13 @@ class User extends Authenticatable
     protected $fillable = [
         'tenant_id', 'name', 'email', 'phone', 'password',
         'is_active', 'avatar_path', 'preferences', 'last_login_at',
+        'invitation_token', 'invited_at', 'invited_by',
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = [
+        'password', 'remember_token', 'invitation_token',
+        'two_factor_secret', 'two_factor_recovery_codes',
+    ];
 
     protected static function booted(): void
     {
@@ -39,7 +43,22 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'preferences' => 'array',
+            'invited_at' => 'datetime',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /** 2FA is active only once the user has confirmed a code from their app. */
+    public function hasTwoFactorEnabled(): bool
+    {
+        return ! is_null($this->two_factor_confirmed_at) && ! is_null($this->two_factor_secret);
+    }
+
+    public function invitationPending(): bool
+    {
+        return ! is_null($this->invitation_token);
     }
 
     public function tenant(): BelongsTo

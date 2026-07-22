@@ -27,16 +27,26 @@ class LoginController extends Controller
             'password' => 'required',
         ]);
 
-        if (! Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        // Verify credentials without starting a session yet — a 2FA-protected
+        // account must clear the second factor before it is logged in.
+        if (! Auth::validate($request->only('email', 'password'))) {
             return back()->withErrors(['email' => 'Invalid credentials.'])->withInput();
         }
 
-        $user = Auth::user();
+        $user = User::where('email', $request->email)->first();
         if (! $user->is_active) {
-            Auth::logout();
             return back()->withErrors(['email' => 'Your account has been disabled.']);
         }
 
+        if ($user->hasTwoFactorEnabled()) {
+            $request->session()->put([
+                \App\Http\Controllers\Auth\TwoFactorChallengeController::SESSION_ID       => $user->id,
+                \App\Http\Controllers\Auth\TwoFactorChallengeController::SESSION_REMEMBER  => $request->boolean('remember'),
+            ]);
+            return redirect()->route('two-factor.login');
+        }
+
+        Auth::login($user, $request->boolean('remember'));
         $user->update(['last_login_at' => now()]);
         $request->session()->regenerate();
 

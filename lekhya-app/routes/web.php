@@ -53,6 +53,14 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::get('/register', [LoginController::class, 'showRegister'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
 
+// ── Team invitation (invitee sets their own password)
+Route::get('/invitation/{token}', [\App\Http\Controllers\Auth\InvitationController::class, 'show'])->name('invitation.accept');
+Route::post('/invitation/{token}', [\App\Http\Controllers\Auth\InvitationController::class, 'accept']);
+
+// ── Two-factor login challenge (after password, before session)
+Route::get('/two-factor', [\App\Http\Controllers\Auth\TwoFactorChallengeController::class, 'show'])->name('two-factor.login');
+Route::post('/two-factor', [\App\Http\Controllers\Auth\TwoFactorChallengeController::class, 'verify'])->middleware('throttle:10,1');
+
 // ── Prabhas SSO (Brief 1)
 Route::get('/auth/sso', [SsoController::class, 'handle'])->name('sso.handle');
 Route::get('/auth/sso/logout', [SsoController::class, 'logout'])->name('sso.logout');
@@ -235,6 +243,14 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('fiscal-years', [TenantController::class, 'storeFiscalYear'])->name('fiscal_years.store');
         Route::patch('fiscal-years/{fiscalYear}/current', [TenantController::class, 'setCurrentFiscalYear'])->name('fiscal_years.current');
         Route::get('audit-trail', [\App\Http\Controllers\AuditTrailController::class, 'index'])->name('audit_trail');
+
+        // Security — two-factor authentication (TOTP / Google Authenticator)
+        Route::get('security', [\App\Http\Controllers\Settings\TwoFactorController::class, 'show'])->name('security');
+        Route::post('security/2fa/enable', [\App\Http\Controllers\Settings\TwoFactorController::class, 'enable'])->name('security.2fa.enable');
+        Route::post('security/2fa/confirm', [\App\Http\Controllers\Settings\TwoFactorController::class, 'confirm'])->name('security.2fa.confirm');
+        Route::delete('security/2fa', [\App\Http\Controllers\Settings\TwoFactorController::class, 'disable'])->name('security.2fa.disable');
+        Route::post('security/2fa/recovery-codes', [\App\Http\Controllers\Settings\TwoFactorController::class, 'regenerateRecoveryCodes'])->name('security.2fa.recovery');
+
         Route::get('billing', [TenantController::class, 'billing'])->name('billing');
         Route::post('billing/test-invoice', [TenantController::class, 'testInvoice'])->name('billing.test');
 
@@ -246,6 +262,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         // Users & RBAC (Brief 1B)
         Route::get('users', [UserManagementController::class, 'index'])->name('users');
         Route::post('users/invite', [UserManagementController::class, 'invite'])->name('users.invite');
+        Route::post('users/{user}/resend-invite', [UserManagementController::class, 'resendInvite'])->name('users.resend_invite');
         Route::patch('users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.role');
         Route::patch('users/{user}/permissions', [UserManagementController::class, 'updatePermissions'])->name('users.permissions');
         Route::patch('users/{user}/deactivate', [UserManagementController::class, 'deactivate'])->name('users.deactivate');
