@@ -2,11 +2,24 @@
 namespace App\Http\Controllers\GST;
 use App\Http\Controllers\Controller;
 use App\Models\{Invoice, Gstr1Filing, Gstr2bImport, Gstr2bReconciliation};
-use App\Services\GST\{GstGateway, GstRateEngine};
+use App\Services\GST\{GstConnection, GstGateway, GstRateEngine};
 use Illuminate\Http\Request;
 
 class GstController extends Controller {
-    public function __construct(private GstGateway $gateway, private GstRateEngine $rateEngine) {}
+    public function __construct(private GstGateway $gateway, private GstRateEngine $rateEngine, private GstConnection $gst) {}
+
+    /**
+     * Block a transactional GST call with a helpful redirect when the tenant
+     * isn't ready: no plan entitlement, no GST connection, or quota spent.
+     */
+    private function gstGuard(): ?\Illuminate\Http\RedirectResponse {
+        return match ($this->gst->blockReason()) {
+            'not_entitled'  => redirect()->route('settings.billing')->with('error', 'GST e-invoicing & filing aren’t in your current plan — upgrade to enable them.'),
+            'not_connected' => redirect()->route('settings.gst')->with('error', 'Connect your company’s GST first — add your GSTIN and e-Invoice / e-Way Bill credentials.'),
+            'limit_reached' => back()->with('error', 'You’ve used this month’s GST filing allowance. It resets on the 1st, or upgrade for more.'),
+            default         => null,
+        };
+    }
 
     public function dashboard() {
         $tenantId = auth()->user()->tenant_id;
@@ -65,11 +78,18 @@ class GstController extends Controller {
     }
 
     public function fileGstr1(Request $request) {
+        if ($block = $this->gstGuard()) return $block;
         $period = $request->input('period');
         $tenant = auth()->user()->tenant;
         $filing = Gstr1Filing::where('tenant_id', auth()->user()->tenant_id)->where('return_period', $period)->firstOrFail();
-        $result = $this->gateway->fileGstr1($tenant->gstin, $period, $filing->b2b_data ?? []);
+        try {
+            $result = $this->gateway->fileGstr1($tenant->gstin, $period, $filing->b2b_data ?? []);
+        } catch (\Throwable $e) {
+            $this->gst->meter('gstr1', $period, 'failed', ['error' => $e->getMessage()]);
+            return back()->with('error', 'GSTR-1 filing failed: ' . $e->getMessage());
+        }
         $filing->update(['status' => 'filed', 'filed_at' => now(), 'filed_by' => auth()->id()]);
+        $this->gst->meter('gstr1', $period, 'success', ['arn' => $result['arn'] ?? null]);
         return back()->with('success', "GSTR-1 filed. ARN: {$result['arn']}");
     }
 
@@ -159,9 +179,17 @@ class GstController extends Controller {
     public function generateIrn(Invoice $invoice) {
         abort_if($invoice->tenant_id !== auth()->user()->tenant_id, 403);
         if ($invoice->irn) return back()->with('error', 'IRN already generated for this invoice.');
+        if ($block = $this->gstGuard()) return $block;
+
         $payload = ['invoice_number' => $invoice->invoice_number, 'total' => $invoice->total_amount, 'gstin' => $invoice->tenant->gstin];
-        $result = $this->gateway->generateIrn($payload);
+        try {
+            $result = $this->gateway->generateIrn($payload);
+        } catch (\Throwable $e) {
+            $this->gst->meter('irn', $invoice->invoice_number, 'failed', ['error' => $e->getMessage()]);
+            return back()->with('error', 'e-Invoice failed: ' . $e->getMessage());
+        }
         $invoice->update(['irn' => $result['irn'], 'ack_number' => $result['ack_no'], 'ack_date' => $result['ack_date'], 'signed_qr' => $result['signed_qr']]);
+        $this->gst->meter('irn', $invoice->invoice_number, 'success', ['irn' => $result['irn']]);
         return back()->with('success', "IRN generated: {$result['irn']}");
     }
 }

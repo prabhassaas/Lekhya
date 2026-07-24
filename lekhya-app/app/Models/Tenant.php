@@ -154,6 +154,64 @@ class Tenant extends Model
         return $this->aiEnabled() && ! $this->aiCreditsUnlimited() && $this->aiCreditsRemaining() <= 0;
     }
 
+    // ── GST filing (per-tenant GSP connection) ──────────────────────────────
+
+    public function gstSetting(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(GstSetting::class);
+    }
+
+    public function gstConnected(): bool
+    {
+        return (bool) $this->gstSetting?->isConnected();
+    }
+
+    /** GST filing is offered on any active subscription/trial; paid tiers unlock production. */
+    public function gstFilingEnabled(): bool
+    {
+        if (! $this->aiEnabled()) {
+            return false; // needs an active subscription or trial
+        }
+        $plan = $this->activePlan();
+        if (! $plan) {
+            return true; // entitled trial without a plan row → sandbox allowed
+        }
+        $features = is_array($plan->features) ? $plan->features : [];
+        if (array_key_exists('gst_filing', $features)) {
+            return (bool) $features['gst_filing'];
+        }
+        if (in_array('all', $features, true)) {
+            return true;
+        }
+        return in_array($plan->tier, ['pro', 'lifetime', 'suite', 'pramaan'], true);
+    }
+
+    /** Monthly GST-API allowance (IRNs, e-way bills, filings). */
+    public function gstFilingLimit(): int
+    {
+        $plan = $this->activePlan();
+        if (! $plan) {
+            return 25; // trial / sandbox allowance
+        }
+        $features = is_array($plan->features) ? $plan->features : [];
+        if (array_key_exists('gst_filings', $features)) {
+            $v = $features['gst_filings'];
+            return $v === null ? PHP_INT_MAX : max(0, (int) $v);
+        }
+        if (in_array('all', $features, true) || $plan->tier === 'suite') {
+            return PHP_INT_MAX;
+        }
+        return in_array($plan->tier, ['pro', 'lifetime'], true) ? 500 : 100;
+    }
+
+    public function gstFilingsUsed(): int { return GstFiling::monthlyCount($this->id); }
+    public function gstFilingsUnlimited(): bool { return $this->gstFilingLimit() >= PHP_INT_MAX; }
+    public function gstFilingsRemaining(): int { return max(0, $this->gstFilingLimit() - $this->gstFilingsUsed()); }
+    public function gstFilingsExhausted(): bool
+    {
+        return ! $this->gstFilingsUnlimited() && $this->gstFilingsRemaining() <= 0;
+    }
+
     /**
      * How many Seedha Bill accounts this company may connect. The model is
      * one Seedha Bill account per active connector token; the plan sets how

@@ -266,6 +266,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::put('ai', [AiSettingsController::class, 'update'])->name('ai.update');
         Route::post('ai/test', [AiSettingsController::class, 'test'])->name('ai.test');
 
+        // GST connection (per-tenant GSP credentials for e-invoice / e-way / returns)
+        Route::get('gst', [\App\Http\Controllers\Settings\GstConnectionController::class, 'edit'])->name('gst');
+        Route::put('gst', [\App\Http\Controllers\Settings\GstConnectionController::class, 'update'])->name('gst.update');
+        Route::post('gst/test', [\App\Http\Controllers\Settings\GstConnectionController::class, 'test'])->name('gst.test');
+        Route::delete('gst', [\App\Http\Controllers\Settings\GstConnectionController::class, 'disconnect'])->name('gst.disconnect');
+
         // Users & RBAC (Brief 1B)
         Route::get('users', [UserManagementController::class, 'index'])->name('users');
         Route::post('users/invite', [UserManagementController::class, 'invite'])->name('users.invite');

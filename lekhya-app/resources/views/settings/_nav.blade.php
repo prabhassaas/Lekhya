@@ -3,6 +3,7 @@
         ['settings.company', 'Company', 'fa-building'],
         ['settings.fiscal_years', 'Fiscal Years', 'fa-calendar'],
         ['settings.users', 'Users & Roles', 'fa-users'],
+        ['settings.gst', 'GST Filing', 'fa-file-invoice-dollar'],
         ['settings.security', 'Security', 'fa-shield-halved'],
         ['settings.audit_trail', 'Audit Trail', 'fa-clipboard-list'],
         ['settings.billing', 'Billing', 'fa-credit-card'],
